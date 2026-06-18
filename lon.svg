@@ -1,0 +1,8 @@
+<!-- London: 2026-06-18T15:45  code=3  25.8°C  cloud=100%  wind=6.8kn@203° -->
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="260" viewBox="0 0 260 260">
+  <line x1="111.24" y1="174.18" x2="89.36" y2="225.73" stroke="#1a1a2e" stroke-width="4" stroke-linecap="round"/>
+  <line x1="92.49" y1="218.37" x2="86.19" y2="217.87" stroke="#1a1a2e" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="130.0" cy="130.0" r="48" fill="none" stroke="#1a1a2e" stroke-width="6"/>
+  <path d="M130.00,130.00 L130.00,82.00 A48.00,48.00 0 1 1 129.99,82.00 Z" fill="#1a1a2e"/>
+  <text x="154.00" y="76.00" font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="26" font-weight="700" fill="#1a1a2e">26°</text>
+</svg>
