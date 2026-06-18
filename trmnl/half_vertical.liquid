@@ -1,0 +1,39 @@
+{% comment %} Weather Circles — half_vertical (400x480) {% endcomment %}
+<style>
+  .wc        { height:100%; display:flex; flex-direction:column;
+               font-family:-apple-system,Helvetica,Arial,sans-serif; color:#000; }
+  .wc-cur    { display:flex; flex-direction:column; align-items:center; text-align:center;
+               border-bottom:2px solid #000; padding:12px 12px 10px; }
+  .wc-cur svg{ width:92px; height:92px; }
+  .wc-temp   { font-size:44px; font-weight:800; line-height:1; }
+  .wc-sum    { font-size:19px; font-weight:600; }
+  .wc-hl     { font-size:14px; }
+  .wc-grid   { flex:1; display:grid; grid-template-columns:repeat(2,1fr);
+               grid-template-rows:1fr 1fr; gap:2px 6px; padding:6px 12px; min-height:0; }
+  .wc-cell   { display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .wc-cell:nth-child(n+5) { display:none; }
+  .wc-cell svg{ width:78px; height:78px; }
+  .wc-hr     { font-size:15px; font-weight:700; }
+  .wc-ct     { font-size:17px; font-weight:600; }
+  .wc-bar    { text-align:center; border-top:2px solid #000; padding:6px;
+               font-size:14px; font-weight:600; }
+</style>
+
+<div class="wc">
+  <div class="wc-cur">
+    {{ current.svg }}
+    <div class="wc-temp">{{ current.temp }}&deg;</div>
+    <div class="wc-sum">{{ current.summary }}</div>
+    <div class="wc-hl">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg; &middot; {{ current.wind }}</div>
+  </div>
+  <div class="wc-grid">
+    {% for h in hours %}
+    <div class="wc-cell">
+      <div class="wc-hr">{{ h.label }}</div>
+      {{ h.svg }}
+      <div class="wc-ct">{{ h.temp }}&deg;</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="wc-bar">{{ location }} &middot; {{ generated_at }}</div>
+</div>
