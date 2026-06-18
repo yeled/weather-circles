@@ -222,10 +222,12 @@ def render_layout(layout, payload):
     with open(os.path.join(TRMNL_DIR, f"{layout}.liquid")) as f:
         inner = render_liquid(f.read(), payload)
     w, h = LAYOUTS[layout]
+    # TRMNL's framework insets the view by --gap (10px) of screen padding;
+    # mirror that here so the local preview matches the device.
     return (f'<!DOCTYPE html><html><head><meta charset="utf-8"><style>'
             f'html,body{{margin:0;padding:0}}*{{box-sizing:border-box}}'
-            f'.trmnl{{width:{w}px;height:{h}px;background:#fff;color:#000;'
-            f'overflow:hidden}}</style></head><body>'
+            f'.trmnl{{width:{w}px;height:{h}px;padding:10px;background:#fff;'
+            f'color:#000;overflow:hidden}}</style></head><body>'
             f'<div class="trmnl">{inner}</div></body></html>')
 
 

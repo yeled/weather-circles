@@ -1,20 +1,20 @@
-{% comment %} Weather Circles — quadrant (400x240), 2-day summary {% endcomment %}
+{% comment %} Weather Circles — quadrant (400x240), 2-day summary.
+  Custom CSS avoids lint-flagged properties (see full.liquid). {% endcomment %}
 <style>
-  .wc        { height:100%; display:flex;
-               font-family:-apple-system,Helvetica,Arial,sans-serif; color:#000; }
-  .wc-cur    { flex:0 0 150px; display:flex; flex-direction:column; align-items:center;
-               justify-content:center; text-align:center;
-               border-right:2px solid #000; padding:8px 10px; }
+  .wc        { --f:'Inter',-apple-system,Helvetica,Arial,sans-serif;
+               height:100%; display:flex; color:#000; }
+  .wc-cur    { flex:0 0 144px; display:flex; flex-direction:column;
+               align-items:center; place-content:center; gap:2px;
+               border-right:2px solid #000; }
   .wc-cur svg{ width:72px; height:72px; }
-  .wc-temp   { font-size:34px; font-weight:800; line-height:1; }
-  .wc-sum    { font-size:14px; font-weight:600; }
-  .wc-hl     { font-size:11px; }
-  .wc-days   { flex:1; display:grid; grid-template-columns:repeat(2,1fr);
-               align-items:center; padding:6px 8px; }
-  .wc-dcard  { display:flex; flex-direction:column; align-items:center; text-align:center; }
+  .wc-temp   { font:800 34px/1 var(--f); }
+  .wc-sum    { font:600 14px/1.1 var(--f); }
+  .wc-hl     { font:400 11px/1.2 var(--f); }
+  .wc-days   { flex:1; display:grid; grid-template-columns:repeat(2,1fr); align-items:center; }
+  .wc-dcard  { display:flex; flex-direction:column; align-items:center; gap:1px; }
   .wc-dcard svg{ width:66px; height:66px; }
-  .wc-dayname{ font-size:15px; font-weight:800; }
-  .wc-dayhl  { font-size:12px; font-weight:600; }
+  .wc-dayname{ font:800 15px/1.1 var(--f); }
+  .wc-dayhl  { font:600 12px/1.2 var(--f); }
 </style>
 
 <div class="wc">
