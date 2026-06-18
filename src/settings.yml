@@ -1,0 +1,14 @@
+---
+strategy: polling
+no_screen_padding: 'no'
+dark_mode: 'no'
+static_data: ''
+polling_verb: get
+framework_version: 3.1.1
+serverless_language: ''
+polling_url: https://mb.spodder.com/weather-circles/london.json
+polling_headers: ''
+polling_body: https://mb.spodder.com/weather-circles/london.json
+id: 341571
+name: Weather Circles
+refresh_interval: 15

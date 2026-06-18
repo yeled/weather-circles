@@ -155,7 +155,7 @@ LAYOUTS = {
     "half_vertical":   (400, 480),
     "quadrant":        (400, 240),
 }
-TRMNL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trmnl")
+TRMNL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
 
 
 def _lookup(expr, ctx):
