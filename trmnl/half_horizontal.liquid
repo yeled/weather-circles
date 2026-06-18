@@ -1,22 +1,25 @@
-{% comment %} Weather Circles — half_horizontal (800x240) {% endcomment %}
+{% comment %} Weather Circles — half_horizontal (800x240), 2-day view {% endcomment %}
 <style>
-  .wc        { height:100%; display:flex; align-items:stretch;
+  .wc        { height:100%; display:flex;
                font-family:-apple-system,Helvetica,Arial,sans-serif; color:#000; }
-  .wc-cur    { flex:0 0 220px; display:flex; flex-direction:column; align-items:center;
+  .wc-cur    { flex:0 0 196px; display:flex; flex-direction:column; align-items:center;
                justify-content:center; text-align:center;
-               border-right:2px solid #000; padding:10px 16px; }
-  .wc-cur svg{ width:84px; height:84px; }
-  .wc-temp   { font-size:40px; font-weight:800; line-height:1; }
-  .wc-sum    { font-size:17px; font-weight:600; }
-  .wc-hl     { font-size:14px; }
-  .wc-grid   { flex:1; display:grid; grid-template-columns:repeat(4,1fr);
-               align-items:center; padding:8px 14px; gap:4px; }
-  /* one row only */
+               border-right:2px solid #000; padding:8px 12px; }
+  .wc-cur svg{ width:78px; height:78px; }
+  .wc-temp   { font-size:38px; font-weight:800; line-height:1; }
+  .wc-sum    { font-size:16px; font-weight:600; }
+  .wc-hl     { font-size:13px; }
+  .wc-days   { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .wc-day    { flex:1; display:flex; align-items:center; gap:10px; padding:4px 14px; min-height:0; }
+  .wc-day + .wc-day { border-top:2px solid #000; }
+  .wc-dayhdr { flex:0 0 80px; display:flex; flex-direction:column; }
+  .wc-dayname{ font-size:16px; font-weight:800; }
+  .wc-dayhl  { font-size:12px; font-weight:600; }
+  .wc-row    { flex:1; display:grid; grid-template-columns:repeat(4,1fr); align-items:center; }
   .wc-cell   { display:flex; flex-direction:column; align-items:center; }
-  .wc-cell:nth-child(n+5) { display:none; }
-  .wc-cell svg{ width:78px; height:78px; }
-  .wc-hr     { font-size:15px; font-weight:700; }
-  .wc-ct     { font-size:17px; font-weight:600; }
+  .wc-cell svg{ width:56px; height:56px; }
+  .wc-hr     { font-size:12px; font-weight:700; }
+  .wc-ct     { font-size:13px; font-weight:600; }
 </style>
 
 <div class="wc">
@@ -26,12 +29,22 @@
     <div class="wc-sum">{{ current.summary }}</div>
     <div class="wc-hl">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</div>
   </div>
-  <div class="wc-grid">
-    {% for h in hours %}
-    <div class="wc-cell">
-      <div class="wc-hr">{{ h.label }}</div>
-      {{ h.svg }}
-      <div class="wc-ct">{{ h.temp }}&deg;</div>
+  <div class="wc-days">
+    {% for d in days %}
+    <div class="wc-day">
+      <div class="wc-dayhdr">
+        <span class="wc-dayname">{{ d.label }}</span>
+        <span class="wc-dayhl">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
+      </div>
+      <div class="wc-row">
+        {% for c in d.cells %}
+        <div class="wc-cell">
+          <div class="wc-hr">{{ c.label }}</div>
+          {{ c.svg }}
+          <div class="wc-ct">{{ c.temp }}&deg;</div>
+        </div>
+        {% endfor %}
+      </div>
     </div>
     {% endfor %}
   </div>

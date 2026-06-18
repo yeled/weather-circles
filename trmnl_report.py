@@ -62,7 +62,8 @@ def fetch(lat, lon, tz):
                    "wind_speed_10m,wind_direction_10m",
         "hourly": "weather_code,temperature_2m,cloud_cover,"
                   "wind_speed_10m,wind_direction_10m",
-        "daily": "temperature_2m_max,temperature_2m_min",
+        "daily": "weather_code,temperature_2m_max,temperature_2m_min,"
+                 "wind_speed_10m_max,wind_direction_10m_dominant",
         "wind_speed_unit": "kn", "forecast_days": 2, "timezone": tz,
     })
     url = f"https://api.open-meteo.com/v1/forecast?{params}"
@@ -88,42 +89,60 @@ def cell(entry):
     }
 
 
-def build_payload(data, name, count, step):
-    cur = data["current"]
-    h   = data["hourly"]
+HOURLY_FIELDS = ("weather_code", "temperature_2m", "cloud_cover",
+                 "wind_speed_10m", "wind_direction_10m")
+DAY_LABELS = ["Today", "Tomorrow"]
 
-    # index of the current hour within the hourly arrays
-    hour_key = cur["time"][:13] + ":00"
+
+def _hour_cell(h, date, hh):
+    """Build a forecast cell for a given calendar date + hour, or None."""
     try:
-        start = h["time"].index(hour_key)
+        j = h["time"].index(f"{date}T{hh:02d}:00")
     except ValueError:
-        start = 0
+        return None
+    c = cell({k: h[k][j] for k in HOURLY_FIELDS})
+    c["label"] = f"{hh:02d}"
+    return c
 
-    hours = []
-    for n in range(1, count + 1):                 # upcoming hours, skipping "now"
-        j = start + n * step
-        if j >= len(h["time"]):
-            break
-        entry = {k: h[k][j] for k in
-                 ("weather_code", "temperature_2m", "cloud_cover",
-                  "wind_speed_10m", "wind_direction_10m")}
-        c = cell(entry)
-        c["label"] = h["time"][j][11:16]          # HH:MM
-        hours.append(c)
+
+def _day_svg(h, date, daily, idx):
+    """A summary station circle for the whole day (mean cloud + daily wind)."""
+    clouds = [h["cloud_cover"][i] for i, t in enumerate(h["time"])
+              if t.startswith(date) and h["cloud_cover"][i] is not None]
+    entry = {
+        "weather_code":       daily["weather_code"][idx],
+        "temperature_2m":     daily["temperature_2m_max"][idx],
+        "cloud_cover":        sum(clouds) / len(clouds) if clouds else 0,
+        "wind_speed_10m":     daily["wind_speed_10m_max"][idx],
+        "wind_direction_10m": daily["wind_direction_10m_dominant"][idx],
+    }
+    return wc.build_svg(entry, INK, mono=True, show_temp=False)
+
+
+def build_payload(data, name, days_count=2, slots=(9, 13, 17, 21)):
+    cur, h, daily = data["current"], data["hourly"], data["daily"]
 
     current = cell(cur)
-    daily = data.get("daily", {})
-    if daily.get("temperature_2m_max"):
-        current["high"] = round(daily["temperature_2m_max"][0])
-        current["low"]  = round(daily["temperature_2m_min"][0])
-    else:
-        current["high"] = current["low"] = current["temp"]
+    current["high"] = round(daily["temperature_2m_max"][0])
+    current["low"]  = round(daily["temperature_2m_min"][0])
+
+    days = []
+    for idx in range(min(days_count, len(daily["time"]))):
+        date = daily["time"][idx]
+        cells = [c for c in (_hour_cell(h, date, hh) for hh in slots) if c]
+        days.append({
+            "label": DAY_LABELS[idx] if idx < len(DAY_LABELS) else date,
+            "high":  round(daily["temperature_2m_max"][idx]),
+            "low":   round(daily["temperature_2m_min"][idx]),
+            "svg":   _day_svg(h, date, daily, idx),
+            "cells": cells,
+        })
 
     return {
         "location":     name,
         "generated_at": cur["time"][11:16],
         "current":      current,
-        "hours":        hours,
+        "days":         days,
     }
 
 
@@ -139,39 +158,63 @@ LAYOUTS = {
 TRMNL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trmnl")
 
 
-def _resolve(expr, ctx):
-    """Look up a dotted path like 'current.svg' in ctx."""
+def _lookup(expr, ctx):
+    """Resolve a dotted path like 'd.cells' in ctx; returns the raw value."""
     val = ctx
     for part in expr.split("|")[0].strip().split("."):
-        val = val.get(part, "") if isinstance(val, dict) else getattr(val, part, "")
-    return "" if val is None else str(val)
+        val = val.get(part) if isinstance(val, dict) else getattr(val, part, None)
+        if val is None:
+            return None
+    return val
 
 
 def _subst_vars(text, ctx):
-    return re.sub(r"{{\s*(.*?)\s*}}", lambda m: _resolve(m.group(1), ctx), text)
+    def rep(m):
+        v = _lookup(m.group(1), ctx)
+        return "" if v is None else str(v)
+    return re.sub(r"{{\s*(.*?)\s*}}", rep, text)
+
+
+_FOR_OPEN = re.compile(r"{%-?\s*for\s+(\w+)\s+in\s+([\w.]+)\s*-?%}")
+_FOR_TAG  = re.compile(r"{%-?\s*for\s+\w+\s+in\s+[\w.]+\s*-?%}|{%-?\s*endfor\s*-?%}")
 
 
 def render_liquid(template, ctx):
-    """Tiny Liquid subset: {% comment %}, {% for x in list %}, {{ a.b }}.
+    """Tiny Liquid subset: {% comment %}, nested {% for x in list %}, {{ a.b }}.
 
-    Enough to render our own templates so the local preview is byte-for-byte
-    the markup TRMNL renders. Not a general Liquid implementation.
+    Enough to render our own templates so the local preview matches the markup
+    TRMNL renders. Not a general Liquid implementation.
     """
     template = re.sub(r"{%-?\s*comment\s*-?%}.*?{%-?\s*endcomment\s*-?%}",
                       "", template, flags=re.S)
+    return _render(template, ctx)
 
-    def for_block(m):
-        var, coll, body = m.group(1), m.group(2), m.group(3)
-        out = []
-        for item in ctx.get(coll, []):
-            local = dict(ctx, **{var: item})
-            out.append(_subst_vars(body, local))
-        return "".join(out)
 
-    template = re.sub(
-        r"{%-?\s*for\s+(\w+)\s+in\s+(\w+)\s*-?%}(.*?){%-?\s*endfor\s*-?%}",
-        for_block, template, flags=re.S)
-    return _subst_vars(template, ctx)
+def _render(s, ctx):
+    out, pos = [], 0
+    while True:
+        m = _FOR_OPEN.search(s, pos)
+        if not m:
+            out.append(_subst_vars(s[pos:], ctx))
+            return "".join(out)
+        out.append(_subst_vars(s[pos:m.start()], ctx))
+        var, coll_expr = m.group(1), m.group(2)
+        body, pos = _match_endfor(s, m.end())
+        for item in _lookup(coll_expr, ctx) or []:
+            out.append(_render(body, dict(ctx, **{var: item})))
+
+
+def _match_endfor(s, start):
+    """Return (body, index-after-endfor) for the for-loop opened before `start`."""
+    depth, pos = 1, start
+    while True:
+        m = _FOR_TAG.search(s, pos)
+        if not m:
+            raise ValueError("unclosed {% for %}")
+        depth += -1 if "endfor" in m.group(0) else 1
+        if depth == 0:
+            return s[start:m.start()], m.end()
+        pos = m.end()
 
 
 def render_layout(layout, payload):
@@ -238,8 +281,7 @@ def main():
     ap.add_argument("--lon", type=float, default=-0.1278)
     ap.add_argument("--name", default="London")
     ap.add_argument("--tz", default="Europe/London")
-    ap.add_argument("--count", type=int, default=6, help="number of forecast cells")
-    ap.add_argument("--step", type=int, default=2, help="hours between cells")
+    ap.add_argument("--days", type=int, default=2, help="forecast days to show (1-2)")
     ap.add_argument("--webhook", default=os.environ.get("TRMNL_WEBHOOK_URL"),
                     help="TRMNL private-plugin webhook URL (or TRMNL_WEBHOOK_URL env)")
     ap.add_argument("--json", action="store_true", help="print payload JSON to stdout")
@@ -259,7 +301,7 @@ def main():
     except Exception as e:                       # noqa: BLE001
         sys.exit(f"weather fetch failed: {e}")
 
-    payload = build_payload(data, args.name, args.count, args.step)
+    payload = build_payload(data, args.name, args.days)
 
     if args.preview:
         with open(args.preview, "w") as f:

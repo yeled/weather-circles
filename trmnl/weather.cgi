@@ -17,7 +17,7 @@ import sys
 
 REPO_DIR = "/Users/yeled/src/weather-circles"   # <-- absolute path to checkout
 LAT, LON, NAME, TZ = 51.5074, -0.1278, "London", "Europe/London"
-COUNT, STEP = 6, 2
+DAYS = 2
 
 sys.path.insert(0, REPO_DIR)
 os.chdir(REPO_DIR)                                # build_svg etc. use relative nothing, but be safe
@@ -26,7 +26,7 @@ import trmnl_report as tr                          # noqa: E402
 
 try:
     data    = tr.fetch(LAT, LON, TZ)
-    payload = tr.build_payload(data, NAME, COUNT, STEP)
+    payload = tr.build_payload(data, NAME, DAYS)
     body    = json.dumps(payload, separators=(",", ":"))
     sys.stdout.write("Content-Type: application/json\r\n")
     sys.stdout.write("Cache-Control: max-age=300\r\n\r\n")
