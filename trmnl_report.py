@@ -170,6 +170,9 @@ def main():
     ap.add_argument("--webhook", default=os.environ.get("TRMNL_WEBHOOK_URL"),
                     help="TRMNL private-plugin webhook URL (or TRMNL_WEBHOOK_URL env)")
     ap.add_argument("--json", action="store_true", help="print payload JSON to stdout")
+    ap.add_argument("--poll-json", metavar="FILE", dest="poll_json",
+                    help="write unwrapped payload for a TRMNL polling URL "
+                         "(use '-' for stdout)")
     ap.add_argument("--preview", metavar="FILE", help="write a standalone HTML preview")
     args = ap.parse_args()
 
@@ -186,11 +189,24 @@ def main():
         print(f"wrote {args.preview}", file=sys.stderr)
     if args.json:
         print(json.dumps({"merge_variables": payload}, indent=2))
+    if args.poll_json:
+        # Polling: TRMNL reads the top-level keys directly, so write the
+        # payload unwrapped (no merge_variables envelope). Write atomically
+        # so Apache never serves a half-written file.
+        blob = json.dumps(payload, separators=(",", ":"))
+        if args.poll_json == "-":
+            sys.stdout.write(blob + "\n")
+        else:
+            tmp = args.poll_json + ".tmp"
+            with open(tmp, "w") as f:
+                f.write(blob)
+            os.replace(tmp, args.poll_json)
+            print(f"wrote {args.poll_json} ({len(blob)} bytes)", file=sys.stderr)
     if args.webhook:
         status, text = post_webhook(args.webhook, payload)
         print(f"TRMNL webhook -> {status} {text}", file=sys.stderr)
-    if not (args.preview or args.json or args.webhook):
-        print("nothing to do: pass --preview, --json, or --webhook",
+    if not (args.preview or args.json or args.poll_json or args.webhook):
+        print("nothing to do: pass --preview, --json, --poll-json, or --webhook",
               file=sys.stderr)
 
 
