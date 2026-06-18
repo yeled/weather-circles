@@ -23,7 +23,10 @@ Examples:
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 import urllib.parse
 import urllib.request
 
@@ -150,6 +153,42 @@ def render_html(p):
 </div></body></html>"""
 
 
+def find_chrome():
+    if os.environ.get("CHROME"):
+        return os.environ["CHROME"]
+    candidates = [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    ]
+    for name in ("google-chrome", "chromium", "chromium-browser", "chrome"):
+        found = shutil.which(name)
+        if found:
+            candidates.insert(0, found)
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return None
+
+
+def render_png(payload, out):
+    """Rasterise the report to an exact 800x480 PNG via headless Chrome."""
+    chrome = find_chrome()
+    if not chrome:
+        sys.exit("no Chrome/Chromium found; set CHROME=/path/to/chrome")
+    with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False) as f:
+        f.write(render_html(payload))
+        html = f.name
+    try:
+        subprocess.run([
+            chrome, "--headless=new", "--disable-gpu", "--hide-scrollbars",
+            "--force-device-scale-factor=1", "--window-size=800,480",
+            f"--screenshot={out}", f"file://{html}",
+        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    finally:
+        os.unlink(html)
+    print(f"wrote {out}", file=sys.stderr)
+
+
 def post_webhook(url, payload):
     body = json.dumps({"merge_variables": payload}).encode()
     req = urllib.request.Request(
@@ -174,6 +213,9 @@ def main():
                     help="write unwrapped payload for a TRMNL polling URL "
                          "(use '-' for stdout)")
     ap.add_argument("--preview", metavar="FILE", help="write a standalone HTML preview")
+    ap.add_argument("--png", metavar="FILE",
+                    help="render an exact 800x480 PNG via headless Chrome "
+                         "(set CHROME=/path if not auto-detected)")
     args = ap.parse_args()
 
     try:
@@ -187,6 +229,8 @@ def main():
         with open(args.preview, "w") as f:
             f.write(render_html(payload))
         print(f"wrote {args.preview}", file=sys.stderr)
+    if args.png:
+        render_png(payload, os.path.abspath(args.png))
     if args.json:
         print(json.dumps({"merge_variables": payload}, indent=2))
     if args.poll_json:
@@ -205,8 +249,8 @@ def main():
     if args.webhook:
         status, text = post_webhook(args.webhook, payload)
         print(f"TRMNL webhook -> {status} {text}", file=sys.stderr)
-    if not (args.preview or args.json or args.poll_json or args.webhook):
-        print("nothing to do: pass --preview, --json, --poll-json, or --webhook",
+    if not (args.preview or args.png or args.json or args.poll_json or args.webhook):
+        print("nothing to do: pass --preview, --png, --json, --poll-json, or --webhook",
               file=sys.stderr)
 
 
