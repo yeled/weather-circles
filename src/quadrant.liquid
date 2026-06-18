@@ -3,26 +3,28 @@
 <style>
   .wc        { --f:'Inter',-apple-system,Helvetica,Arial,sans-serif;
                height:100%; display:flex; color:#000; }
-  .wc-cur    { flex:0 0 144px; display:flex; flex-direction:column;
-               align-items:center; place-content:center; gap:2px;
-               border-right:2px solid #000; }
-  .wc-cur svg{ width:72px; height:72px; }
-  .wc-temp   { font:800 34px/1 var(--f); }
+  .wc-cur    { flex:0 0 210px; display:flex; align-items:center; place-content:center;
+               gap:10px; border-right:2px solid #000; }
+  .wc-cur svg{ width:114px; height:114px; }
+  .wc-curtxt { display:flex; flex-direction:column; align-items:flex-start; }
+  .wc-temp   { font:800 42px/1 var(--f); }
   .wc-sum    { font:600 14px/1.1 var(--f); }
   .wc-hl     { font:400 11px/1.2 var(--f); }
   .wc-days   { flex:1; display:grid; grid-template-columns:repeat(2,1fr); align-items:center; }
   .wc-dcard  { display:flex; flex-direction:column; align-items:center; gap:1px; }
-  .wc-dcard svg{ width:66px; height:66px; }
-  .wc-dayname{ font:800 15px/1.1 var(--f); }
-  .wc-dayhl  { font:600 12px/1.2 var(--f); }
+  .wc-dcard svg{ width:58px; height:58px; }
+  .wc-dayname{ font:800 14px/1.1 var(--f); }
+  .wc-dayhl  { font:600 11px/1.2 var(--f); }
 </style>
 
 <div class="wc">
   <div class="wc-cur">
     {{ current.svg }}
-    <div class="wc-temp">{{ current.temp }}&deg;</div>
-    <div class="wc-sum">{{ current.summary }}</div>
-    <div class="wc-hl">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</div>
+    <div class="wc-curtxt">
+      <div class="wc-temp">{{ current.temp }}&deg;</div>
+      <div class="wc-sum">{{ current.summary }}</div>
+      <div class="wc-hl">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</div>
+    </div>
   </div>
   <div class="wc-days">
     {% for d in days %}
