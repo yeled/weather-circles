@@ -1,0 +1,45 @@
+{% comment %}
+  TRMNL private plugin — "Weather Circles".
+  Strategy: Webhook. Push merge_variables with trmnl_report.py.
+  Variables: location, generated_at, current{svg,temp,summary,wind,oktas},
+             hours[]{label,svg,temp}.
+{% endcomment %}
+
+<style>
+  .wc-body    { display:flex; flex:1; gap:24px; }
+  .wc-current { flex:0 0 250px; text-align:center; border-right:3px solid #000; padding-right:20px; }
+  .wc-current svg { width:170px; height:170px; }
+  .wc-big     { font-size:64px; font-weight:800; line-height:1; }
+  .wc-sum     { font-size:22px; font-weight:600; }
+  .wc-wind    { font-size:18px; }
+  .wc-grid    { flex:1; display:grid; grid-template-columns:repeat(3,1fr); gap:10px 8px; }
+  .wc-cell    { text-align:center; }
+  .wc-cell svg{ width:96px; height:96px; }
+  .wc-hr      { font-size:18px; font-weight:700; }
+  .wc-t       { font-size:20px; font-weight:600; }
+</style>
+
+<div class="layout" style="display:flex; flex-direction:column; height:100%;">
+  <div class="wc-body">
+    <div class="wc-current">
+      {{ current.svg }}
+      <div class="wc-big">{{ current.temp }}&deg;C</div>
+      <div class="wc-sum">{{ current.summary }}</div>
+      <div class="wc-wind">{{ current.wind }} &middot; {{ current.oktas }}/8 cloud</div>
+    </div>
+    <div class="wc-grid">
+      {% for h in hours %}
+        <div class="wc-cell">
+          <div class="wc-hr">{{ h.label }}</div>
+          {{ h.svg }}
+          <div class="wc-t">{{ h.temp }}&deg;</div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="title_bar">
+  <span class="title">Weather Circles</span>
+  <span class="instance">{{ location }} &middot; {{ generated_at }}</span>
+</div>
