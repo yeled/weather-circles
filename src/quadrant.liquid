@@ -1,0 +1,36 @@
+{% comment %} Weather Circles — quadrant (400x240), 2-day summary {% endcomment %}
+<style>
+  .wc        { height:100%; display:flex;
+               font-family:-apple-system,Helvetica,Arial,sans-serif; color:#000; }
+  .wc-cur    { flex:0 0 150px; display:flex; flex-direction:column; align-items:center;
+               justify-content:center; text-align:center;
+               border-right:2px solid #000; padding:8px 10px; }
+  .wc-cur svg{ width:72px; height:72px; }
+  .wc-temp   { font-size:34px; font-weight:800; line-height:1; }
+  .wc-sum    { font-size:14px; font-weight:600; }
+  .wc-hl     { font-size:11px; }
+  .wc-days   { flex:1; display:grid; grid-template-columns:repeat(2,1fr);
+               align-items:center; padding:6px 8px; }
+  .wc-dcard  { display:flex; flex-direction:column; align-items:center; text-align:center; }
+  .wc-dcard svg{ width:66px; height:66px; }
+  .wc-dayname{ font-size:15px; font-weight:800; }
+  .wc-dayhl  { font-size:12px; font-weight:600; }
+</style>
+
+<div class="wc">
+  <div class="wc-cur">
+    {{ current.svg }}
+    <div class="wc-temp">{{ current.temp }}&deg;</div>
+    <div class="wc-sum">{{ current.summary }}</div>
+    <div class="wc-hl">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</div>
+  </div>
+  <div class="wc-days">
+    {% for d in days %}
+    <div class="wc-dcard">
+      <div class="wc-dayname">{{ d.label }}</div>
+      {{ d.svg }}
+      <div class="wc-dayhl">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>

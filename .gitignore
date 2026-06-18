@@ -1,0 +1,8 @@
+# trmnlp build output
+_build/
+
+# rasterised / generated previews
+*.png
+
+# scratch SVG renders
+london-now*.svg

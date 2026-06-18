@@ -1,0 +1,53 @@
+{% comment %} Weather Circles — half_vertical (400x480), 2-day view {% endcomment %}
+<style>
+  .wc        { height:100%; display:flex; flex-direction:column;
+               font-family:-apple-system,Helvetica,Arial,sans-serif; color:#000; }
+  .wc-cur    { display:flex; flex-direction:column; align-items:center; text-align:center;
+               border-bottom:2px solid #000; padding:12px 12px 10px; }
+  .wc-cur svg{ width:92px; height:92px; }
+  .wc-temp   { font-size:44px; font-weight:800; line-height:1; }
+  .wc-sum    { font-size:19px; font-weight:600; }
+  .wc-hl     { font-size:14px; }
+  .wc-days   { flex:1; display:flex; flex-direction:column; min-height:0; }
+  .wc-day    { flex:1; display:flex; flex-direction:column; padding:6px 12px; min-height:0; }
+  .wc-day + .wc-day { border-top:2px solid #000; }
+  .wc-dayhdr { display:flex; justify-content:space-between; align-items:baseline; }
+  .wc-dayname{ font-size:18px; font-weight:800; }
+  .wc-dayhl  { font-size:14px; font-weight:600; }
+  .wc-row    { flex:1; display:grid; grid-template-columns:repeat(4,1fr); align-items:center; }
+  .wc-cell   { display:flex; flex-direction:column; align-items:center; }
+  .wc-cell svg{ width:62px; height:62px; }
+  .wc-hr     { font-size:13px; font-weight:700; }
+  .wc-ct     { font-size:15px; font-weight:600; }
+  .wc-bar    { text-align:center; border-top:2px solid #000; padding:6px;
+               font-size:13px; font-weight:600; }
+</style>
+
+<div class="wc">
+  <div class="wc-cur">
+    {{ current.svg }}
+    <div class="wc-temp">{{ current.temp }}&deg;</div>
+    <div class="wc-sum">{{ current.summary }}</div>
+    <div class="wc-hl">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg; &middot; {{ current.wind }}</div>
+  </div>
+  <div class="wc-days">
+    {% for d in days %}
+    <div class="wc-day">
+      <div class="wc-dayhdr">
+        <span class="wc-dayname">{{ d.label }}</span>
+        <span class="wc-dayhl">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
+      </div>
+      <div class="wc-row">
+        {% for c in d.cells %}
+        <div class="wc-cell">
+          <div class="wc-hr">{{ c.label }}</div>
+          {{ c.svg }}
+          <div class="wc-ct">{{ c.temp }}&deg;</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="wc-bar">{{ location }} &middot; {{ generated_at }}</div>
+</div>

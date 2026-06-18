@@ -1,0 +1,62 @@
+{% comment %} Weather Circles — full (800x480), 2-day view {% endcomment %}
+<style>
+  .wc        { height:100%; display:flex; flex-direction:column;
+               font-family:-apple-system,Helvetica,Arial,sans-serif; color:#000; }
+  .wc-main   { display:flex; flex:1; min-height:0; }
+  .wc-cur    { flex:0 0 230px; display:flex; flex-direction:column; align-items:center;
+               justify-content:center; text-align:center;
+               border-right:2px solid #000; padding:0 16px; }
+  .wc-cur svg{ width:140px; height:140px; }
+  .wc-temp   { font-size:58px; font-weight:800; line-height:1; margin-top:4px; }
+  .wc-sum    { font-size:21px; font-weight:600; }
+  .wc-hl     { font-size:17px; font-weight:600; margin-top:4px; }
+  .wc-wind   { font-size:15px; color:#333; }
+  .wc-days   { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .wc-day    { flex:1; display:flex; flex-direction:column; padding:8px 18px; min-height:0; }
+  .wc-day + .wc-day { border-top:2px solid #000; }
+  .wc-dayhdr { display:flex; justify-content:space-between; align-items:baseline; }
+  .wc-dayname{ font-size:22px; font-weight:800; }
+  .wc-dayhl  { font-size:17px; font-weight:600; }
+  .wc-row    { flex:1; display:grid; grid-template-columns:repeat(4,1fr); align-items:center; }
+  .wc-cell   { display:flex; flex-direction:column; align-items:center; }
+  .wc-cell svg{ width:74px; height:74px; }
+  .wc-hr     { font-size:15px; font-weight:700; }
+  .wc-ct     { font-size:17px; font-weight:600; }
+  .wc-bar    { display:flex; justify-content:space-between; align-items:center;
+               border-top:2px solid #000; padding:7px 22px; font-size:16px; font-weight:600; }
+</style>
+
+<div class="wc">
+  <div class="wc-main">
+    <div class="wc-cur">
+      {{ current.svg }}
+      <div class="wc-temp">{{ current.temp }}&deg;</div>
+      <div class="wc-sum">{{ current.summary }}</div>
+      <div class="wc-hl">H {{ current.high }}&deg; &nbsp;&middot;&nbsp; L {{ current.low }}&deg;</div>
+      <div class="wc-wind">{{ current.wind }} &middot; {{ current.oktas }}/8 cloud</div>
+    </div>
+    <div class="wc-days">
+      {% for d in days %}
+      <div class="wc-day">
+        <div class="wc-dayhdr">
+          <span class="wc-dayname">{{ d.label }}</span>
+          <span class="wc-dayhl">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
+        </div>
+        <div class="wc-row">
+          {% for c in d.cells %}
+          <div class="wc-cell">
+            <div class="wc-hr">{{ c.label }}</div>
+            {{ c.svg }}
+            <div class="wc-ct">{{ c.temp }}&deg;</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="wc-bar">
+    <span>{{ location }}</span>
+    <span>Updated {{ generated_at }}</span>
+  </div>
+</div>

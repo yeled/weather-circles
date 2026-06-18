@@ -8,34 +8,34 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       min-height: 100vh;
-      background: radial-gradient(ellipse at center, #12122a 0%, #080810 100%);
+      background: radial-gradient(ellipse at center, #12122a 0%, #060610 100%);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 20px;
+      gap: 22px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     }
     canvas {
       display: block;
       border-radius: 50%;
       box-shadow:
-        0 0 0 6px #1c1c38,
-        0 0 0 9px #252548,
-        0 0 0 11px #1c1c38,
-        0 0 70px rgba(40,40,130,0.45),
-        0 0 130px rgba(20,20,80,0.3);
+        0 0 0 7px #1c1c38,
+        0 0 0 10px #2a2a52,
+        0 0 0 13px #1c1c38,
+        0 0 80px rgba(40,40,130,0.45),
+        0 0 150px rgba(20,20,80,0.3);
     }
     #status {
       font-size: 12px;
-      color: rgba(255,255,255,0.28);
-      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.3);
+      letter-spacing: 0.12em;
       text-transform: uppercase;
     }
   </style>
 </head>
 <body>
-  <canvas id="c" width="400" height="400"></canvas>
+  <canvas id="c" width="600" height="600"></canvas>
   <div id="status">London · Loading…</div>
 
   <script>
@@ -48,220 +48,327 @@
     const W = canvas.width, H = canvas.height;
     const CX = W / 2, CY = H / 2;
 
-    const FACE_R  = 182;
-    const ORBIT_R = 150;
-    const ICON_R  = 17;
+    const FACE_R   = 276;   // dark watch face
+    const ORBIT_R  = 212;   // ring the station circles sit on
+    const STN_R    = 19;    // station-circle radius
+    const BARB_LEN = 26;    // wind-shaft length
 
-    // WMO code → [label, iconKey, bgColor]
-    const WMO = {
-      0:  ['Clear sky',           'sun',  '#d97706'],
-      1:  ['Mainly clear',        'sunc', '#b45309'],
-      2:  ['Partly cloudy',       'part', '#4b5563'],
-      3:  ['Overcast',            'cld',  '#374151'],
-      45: ['Fog',                 'fog',  '#6b7280'],
-      48: ['Icy fog',             'fog',  '#9ca3af'],
-      51: ['Light drizzle',       'drz',  '#3b82f6'],
-      53: ['Drizzle',             'drz',  '#2563eb'],
-      55: ['Heavy drizzle',       'drz',  '#1d4ed8'],
-      61: ['Light rain',          'rain', '#2563eb'],
-      63: ['Rain',                'rain', '#1d4ed8'],
-      65: ['Heavy rain',          'hvy',  '#1e3a8a'],
-      71: ['Light snow',          'snow', '#38bdf8'],
-      73: ['Snow',                'snow', '#0ea5e9'],
-      75: ['Heavy snow',          'snow', '#0284c7'],
-      77: ['Snow grains',         'snow', '#38bdf8'],
-      80: ['Showers',             'rain', '#2563eb'],
-      81: ['Showers',             'rain', '#1d4ed8'],
-      82: ['Heavy showers',       'hvy',  '#1e3a8a'],
-      85: ['Snow showers',        'snow', '#0ea5e9'],
-      86: ['Heavy snow showers',  'snow', '#0284c7'],
-      95: ['Thunderstorm',        'thnd', '#6d28d9'],
-      96: ['Thunderstorm+hail',   'thnd', '#5b21b6'],
-      99: ['Thunderstorm+hail',   'thnd', '#4c1d95'],
+    const INK   = '#eef2f8';   // monochrome station ink (cloud/wind)
+    const SHADE = 'rgba(0,0,0,0.45)';
+
+    // ── Weather-code → precipitation symbol key ────────────────────────
+    // Mirrors the UK station-model key: drizzle comma, rain dot, heavy
+    // rain (3 dots), snow star, shower/hail triangle, thunderstorm bolt,
+    // mist (2 lines), fog (3 lines), sleet (dot+star).
+    function precipFor(code) {
+      if ([51,53,55].includes(code))             return 'drizzle';
+      if ([56,57,66,67].includes(code))          return 'sleet';
+      if ([61,63,80,81].includes(code))          return 'rain';
+      if ([65,82].includes(code))                return 'heavyRain';
+      if ([71,73,75,77].includes(code))          return 'snow';
+      if ([85,86].includes(code))                return 'snowShower';
+      if ([95,96,99].includes(code))             return 'thunder';
+      if (code === 45)                            return 'mist';
+      if (code === 48)                            return 'fog';
+      return null; // 0–3 clear/cloudy: cloud cover alone tells the story
+    }
+
+    // Tint per precipitation family (the official key is mono; a little
+    // colour helps legibility on a dark face).
+    const PRECIP_TINT = {
+      drizzle:'#7dd3fc', rain:'#60a5fa', heavyRain:'#3b82f6',
+      sleet:'#a5b4fc',   snow:'#e0f2fe', snowShower:'#bae6fd',
+      thunder:'#fde047', mist:'#cbd5e1', fog:'#94a3b8',
     };
 
-    // ── Shared draw primitives ─────────────────────────────────────────
+    // ── Cloud-cover oktas (the filled circle) ──────────────────────────
+    // Faithful to the key: empty → quarter → half → 3/4 → full, with
+    // dividing lines on the odd oktas, and an ✕ for sky-obscured.
+    function drawOktas(x, y, r, oktas) {
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = INK;
 
-    function drawCloud(x, y, r, fill) {
-      ctx.fillStyle = fill;
+      // base outline
       ctx.beginPath();
-      ctx.arc(x,           y + r*0.04,  r*0.42, 0, Math.PI*2);
-      ctx.arc(x - r*0.38,  y + r*0.10,  r*0.30, 0, Math.PI*2);
-      ctx.arc(x + r*0.38,  y + r*0.10,  r*0.28, 0, Math.PI*2);
-      ctx.arc(x - r*0.14,  y - r*0.22,  r*0.32, 0, Math.PI*2);
-      ctx.arc(x + r*0.16,  y - r*0.17,  r*0.28, 0, Math.PI*2);
-      ctx.fill();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const TOP = -Math.PI / 2;                       // 12 o'clock
+      const wedge = (from, to) => {                   // pie slice, clockwise
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.arc(x, y, r, from, to);
+        ctx.closePath();
+        ctx.fillStyle = INK;
+        ctx.fill();
+      };
+      const vline = () => {
+        ctx.beginPath();
+        ctx.moveTo(x, y - r); ctx.lineTo(x, y + r);
+        ctx.stroke();
+      };
+      const hline = () => {
+        ctx.beginPath();
+        ctx.moveTo(x - r, y); ctx.lineTo(x + r, y);
+        ctx.stroke();
+      };
+
+      switch (oktas) {
+        case 0: break;                                         // clear
+        case 1: vline(); break;                                // line
+        case 2: wedge(TOP, TOP + Math.PI / 2); break;          // quarter
+        case 3: wedge(TOP, TOP + Math.PI / 2); vline(); break; // quarter + line
+        case 4: wedge(TOP, TOP + Math.PI); break;              // half
+        case 5: wedge(TOP, TOP + Math.PI); hline(); break;     // half + line
+        case 6: wedge(TOP, TOP + Math.PI * 1.5); break;        // three-quarters
+        case 7:                                                // full, white sliver
+          wedge(0, Math.PI * 2);
+          ctx.strokeStyle = '#161630'; ctx.lineWidth = 3; vline();
+          break;
+        default:                                               // 8 = overcast
+          wedge(0, Math.PI * 2);
+      }
     }
 
-    function drawSunSymbol(x, y, r) {
-      ctx.strokeStyle = 'rgba(255,255,255,0.92)';
-      ctx.lineWidth   = r * 0.12;
+    function drawObscured(x, y, r) {
+      ctx.lineWidth = 2; ctx.strokeStyle = INK;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.stroke();
+      const d = r * 0.62;
+      ctx.beginPath();
+      ctx.moveTo(x - d, y - d); ctx.lineTo(x + d, y + d);
+      ctx.moveTo(x + d, y - d); ctx.lineTo(x - d, y + d);
+      ctx.stroke();
+    }
+
+    // ── Wind barb (shaft + feathers) ───────────────────────────────────
+    // dirDeg = direction wind blows FROM (Open-Meteo convention). Shaft
+    // points that way; barbs read 50 (pennant) / 10 (full) / 5 (half) kt.
+    function drawBarb(x, y, r, dirDeg, knots) {
+      ctx.strokeStyle = INK;
+      ctx.fillStyle   = INK;
+      ctx.lineWidth   = 2;
       ctx.lineCap     = 'round';
-      for (let i = 0; i < 8; i++) {
-        const a = i * Math.PI / 4;
+
+      // Calm: extra ring, no shaft.
+      if (knots < 1) {
         ctx.beginPath();
-        ctx.moveTo(x + Math.cos(a)*r*0.44, y + Math.sin(a)*r*0.44);
-        ctx.lineTo(x + Math.cos(a)*r*0.82, y + Math.sin(a)*r*0.82);
+        ctx.arc(x, y, r + 4, 0, Math.PI * 2);
+        ctx.stroke();
+        return;
+      }
+
+      const a  = (dirDeg - 90) * Math.PI / 180;       // compass → canvas
+      const ux = Math.cos(a), uy = Math.sin(a);       // outward unit vector
+      const px = -uy, py = ux;                         // perpendicular (barb side)
+
+      const sx = x + ux * r,          sy = y + uy * r;            // shaft start (edge)
+      const ex = x + ux * (r + BARB_LEN), ey = y + uy * (r + BARB_LEN); // shaft end
+
+      ctx.beginPath();
+      ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
+      ctx.stroke();
+
+      // Decompose to pennants(50) / full(10) / half(5), drawn from the tip inward.
+      let kt = Math.round(knots / 5) * 5;
+      let t  = 1;                                      // 1 = tip, 0 = shaft start
+      const step = 7 / BARB_LEN;                       // spacing along shaft
+      const at   = f => [x + ux * (r + BARB_LEN * f), y + uy * (r + BARB_LEN * f)];
+
+      while (kt >= 50) {                               // pennant (filled triangle)
+        const [bx, by] = at(t);
+        const [cx2, cy2] = at(t - step * 1.6);
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(bx + px * 9, by + py * 9);
+        ctx.lineTo(cx2, cy2);
+        ctx.closePath();
+        ctx.fill();
+        t -= step * 1.8; kt -= 50;
+      }
+      while (kt >= 10) {                               // full barb
+        const [bx, by] = at(t);
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(bx + px * 9 + ux * 4, by + py * 9 + uy * 4);
+        ctx.stroke();
+        t -= step; kt -= 10;
+      }
+      if (kt >= 5) {                                   // half barb
+        if (t > 0.85) t -= step;                       // never on the very tip
+        const [bx, by] = at(t);
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.lineTo(bx + px * 4.5 + ux * 2, by + py * 4.5 + uy * 2);
         ctx.stroke();
       }
-      ctx.beginPath();
-      ctx.arc(x, y, r*0.32, 0, Math.PI*2);
-      ctx.fillStyle = 'rgba(255,255,255,0.95)';
-      ctx.fill();
     }
 
-    // n drops centered on (x, y), each slanting down-left
-    function drawDrops(x, y, r, n, color, lw) {
-      ctx.strokeStyle = color;
-      ctx.lineWidth   = lw;
-      ctx.lineCap     = 'round';
-      for (let i = 0; i < n; i++) {
-        const dx = x - (n - 1)*r*0.15 + i*r*0.30;
+    // ── Precipitation glyphs (drawn to the left of the circle) ─────────
+    const GLYPH = {
+      drizzle(x, y, s, c) {                            // comma
+        ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(dx,           y + r*0.08);
-        ctx.lineTo(dx - r*0.10,  y + r*0.56);
+        ctx.arc(x, y - s*0.15, s*0.32, -0.4, Math.PI*0.9);
         ctx.stroke();
-      }
-    }
-
-    // n snowflakes centered on (x, y)
-    function drawFlakes(x, y, r, n) {
-      ctx.strokeStyle = 'rgba(220,248,255,0.92)';
-      ctx.lineWidth   = r * 0.09;
-      ctx.lineCap     = 'round';
-      for (let i = 0; i < n; i++) {
-        const fx = x - (n - 1)*r*0.15 + i*r*0.30;
-        const fy = y + r*0.42;
-        for (let a = 0; a < 3; a++) {
-          const ang = a * Math.PI / 3;
+      },
+      rain(x, y, s, c) {                               // filled dot
+        ctx.fillStyle = c;
+        ctx.beginPath(); ctx.arc(x, y, s*0.34, 0, Math.PI*2); ctx.fill();
+      },
+      heavyRain(x, y, s, c) {                          // three dots
+        ctx.fillStyle = c;
+        const d = s*0.26;
+        [[-d,d*0.6],[d,d*0.6],[0,-d*0.7]].forEach(([dx,dy]) => {
+          ctx.beginPath(); ctx.arc(x+dx, y+dy, s*0.22, 0, Math.PI*2); ctx.fill();
+        });
+      },
+      snow(x, y, s, c) {                               // six-point star
+        ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.lineCap = 'round';
+        for (let i = 0; i < 3; i++) {
+          const a = i * Math.PI / 3;
           ctx.beginPath();
-          ctx.moveTo(fx + Math.cos(ang)*r*0.16, fy + Math.sin(ang)*r*0.16);
-          ctx.lineTo(fx - Math.cos(ang)*r*0.16, fy - Math.sin(ang)*r*0.16);
+          ctx.moveTo(x - Math.cos(a)*s*0.5, y - Math.sin(a)*s*0.5);
+          ctx.lineTo(x + Math.cos(a)*s*0.5, y + Math.sin(a)*s*0.5);
           ctx.stroke();
         }
-      }
-    }
-
-    // ── Icon draw functions (called inside a clip region) ──────────────
-
-    const ICONS = {
-      sun(x, y, r) {
-        drawSunSymbol(x, y, r);
       },
-      sunc(x, y, r) {
-        drawSunSymbol(x - r*0.13, y - r*0.14, r*0.70);
-        drawCloud(x + r*0.10, y + r*0.10, r*0.65, 'rgba(240,246,255,0.86)');
+      sleet(x, y, s, c) {                              // dot over star
+        GLYPH.rain(x, y - s*0.5, s*0.7, c);
+        GLYPH.snow(x, y + s*0.35, s*0.8, c);
       },
-      part(x, y, r) {
-        drawSunSymbol(x - r*0.08, y - r*0.10, r*0.84);
-        drawCloud(x + r*0.06, y + r*0.08, r*0.78, 'rgba(200,216,238,0.95)');
+      snowShower(x, y, s, c) {                         // star over triangle
+        GLYPH.snow(x, y - s*0.45, s*0.8, c);
+        GLYPH.shower(x, y + s*0.5, s*0.8, c);
       },
-      cld(x, y, r) {
-        drawCloud(x, y, r, 'rgba(215,226,242,0.93)');
+      shower(x, y, s, c) {                             // open triangle
+        ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x, y - s*0.5);
+        ctx.lineTo(x - s*0.45, y + s*0.4);
+        ctx.lineTo(x + s*0.45, y + s*0.4);
+        ctx.closePath();
+        ctx.stroke();
       },
-      fog(x, y, r) {
-        ctx.strokeStyle = 'rgba(232,236,242,0.82)';
-        ctx.lineWidth   = r * 0.13;
-        ctx.lineCap     = 'round';
-        [-0.38, -0.09, 0.19, 0.47].forEach((t, i) => {
-          const inset = (i % 2) * r * 0.2;
+      thunder(x, y, s, c) {                            // lightning bolt
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        ctx.moveTo(x + s*0.18, y - s*0.55);
+        ctx.lineTo(x - s*0.30, y + s*0.10);
+        ctx.lineTo(x - s*0.02, y + s*0.05);
+        ctx.lineTo(x - s*0.20, y + s*0.55);
+        ctx.lineTo(x + s*0.34, y - s*0.12);
+        ctx.lineTo(x + s*0.04, y - s*0.06);
+        ctx.closePath();
+        ctx.fill();
+      },
+      mist(x, y, s, c) {                               // two lines
+        ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.lineCap = 'round';
+        [-0.18, 0.18].forEach(t => {
           ctx.beginPath();
-          ctx.moveTo(x - r*0.80 + inset, y + r*t);
-          ctx.lineTo(x + r*0.80 - inset, y + r*t);
+          ctx.moveTo(x - s*0.5, y + s*t); ctx.lineTo(x + s*0.5, y + s*t);
           ctx.stroke();
         });
       },
-      drz(x, y, r) {
-        drawCloud(x, y - r*0.20, r*0.78, 'rgba(210,228,252,0.92)');
-        drawDrops(x, y + r*0.08, r, 2, 'rgba(190,216,255,0.82)', r*0.08);
-      },
-      rain(x, y, r) {
-        drawCloud(x, y - r*0.22, r*0.78, 'rgba(190,212,248,0.94)');
-        drawDrops(x, y + r*0.06, r, 3, 'rgba(155,200,255,0.90)', r*0.10);
-      },
-      hvy(x, y, r) {
-        drawCloud(x, y - r*0.24, r*0.78, 'rgba(158,186,226,0.96)');
-        drawDrops(x, y + r*0.04, r, 4, 'rgba(128,178,255,0.92)', r*0.12);
-      },
-      snow(x, y, r) {
-        drawCloud(x, y - r*0.20, r*0.78, 'rgba(215,238,255,0.94)');
-        drawFlakes(x, y, r, 3);
-      },
-      thnd(x, y, r) {
-        drawCloud(x, y - r*0.22, r*0.78, 'rgba(152,138,200,0.96)');
-        ctx.fillStyle = 'rgba(255,242,50,0.97)';
-        ctx.beginPath();
-        const bx = x + r*0.04, by = y + r*0.04;
-        ctx.moveTo(bx,           by);
-        ctx.lineTo(bx - r*0.22,  by + r*0.40);
-        ctx.lineTo(bx + r*0.02,  by + r*0.34);
-        ctx.lineTo(bx - r*0.12,  by + r*0.74);
-        ctx.lineTo(bx + r*0.26,  by + r*0.28);
-        ctx.lineTo(bx + r*0.06,  by + r*0.34);
-        ctx.closePath();
-        ctx.fill();
+      fog(x, y, s, c) {                                // three lines
+        ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.lineCap = 'round';
+        [-0.3, 0, 0.3].forEach(t => {
+          ctx.beginPath();
+          ctx.moveTo(x - s*0.5, y + s*t); ctx.lineTo(x + s*0.5, y + s*t);
+          ctx.stroke();
+        });
       },
     };
 
     // ── Weather data ───────────────────────────────────────────────────
-
-    let wxData = null;
+    let wx = null;
 
     async function fetchWeather() {
       const url =
         `https://api.open-meteo.com/v1/forecast` +
         `?latitude=${LAT}&longitude=${LON}` +
-        `&hourly=weathercode,temperature_2m` +
-        `&forecast_days=2` +
-        `&timezone=${encodeURIComponent(TZ)}`;
+        `&hourly=weather_code,temperature_2m,cloud_cover,wind_speed_10m,wind_direction_10m` +
+        `&wind_speed_unit=kn&forecast_days=2&timezone=${encodeURIComponent(TZ)}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(res.status);
-      wxData = await res.json();
+      wx = await res.json();
     }
 
-    // Map clock-face hour (1–12) → weather entry for the current 12 h block
+    // Clock position (1–12) → that hour's forecast in the current 12 h block.
     function wxAt(clockH) {
-      if (!wxData) return null;
+      if (!wx) return null;
       const now  = new Date();
       const isPM = now.getHours() >= 12;
       const h24  = clockH === 12 ? (isPM ? 12 : 0) : (isPM ? clockH + 12 : clockH);
-      const yy   = now.getFullYear();
-      const mo   = String(now.getMonth() + 1).padStart(2, '0');
-      const dd   = String(now.getDate()).padStart(2, '0');
-      const key  = `${yy}-${mo}-${dd}T${String(h24).padStart(2, '0')}:00`;
-      const idx  = wxData.hourly.time.indexOf(key);
-      if (idx === -1) return null;
+      const y = now.getFullYear(),
+            m = String(now.getMonth() + 1).padStart(2, '0'),
+            d = String(now.getDate()).padStart(2, '0');
+      const key = `${y}-${m}-${d}T${String(h24).padStart(2, '0')}:00`;
+      const i = wx.hourly.time.indexOf(key);
+      if (i === -1) return null;
       return {
-        code: wxData.hourly.weathercode[idx],
-        temp: Math.round(wxData.hourly.temperature_2m[idx]),
+        code:  wx.hourly.weather_code[i],
+        temp:  Math.round(wx.hourly.temperature_2m[i]),
+        cloud: wx.hourly.cloud_cover[i],
+        wspd:  wx.hourly.wind_speed_10m[i],
+        wdir:  wx.hourly.wind_direction_10m[i],
       };
     }
 
-    // ── Clock rendering ────────────────────────────────────────────────
+    // ── One station circle at a clock position ─────────────────────────
+    function drawStation(h) {
+      const a  = (h * 30 - 90) * Math.PI / 180;
+      const x  = CX + Math.cos(a) * ORBIT_R;
+      const y  = CY + Math.sin(a) * ORBIT_R;
+      const e  = wxAt(h);
 
-    function iconAngle(h) {
-      return (h * 30 - 90) * Math.PI / 180;
+      if (!e) {                                        // loading placeholder
+        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI*2);
+        ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fill();
+        return;
+      }
+
+      // soft backing disc so ink reads on the dark face
+      ctx.beginPath(); ctx.arc(x, y, STN_R + 3, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(10,12,28,0.78)'; ctx.fill();
+
+      drawBarb(x, y, STN_R, e.wdir, e.wspd);
+
+      if (e.code === 45 || e.code === 48 || (e.cloud != null && e.cloud >= 0)) {
+        // sky obscured only for dense fog; otherwise oktas
+        if (e.code === 48) drawObscured(x, y, STN_R);
+        else drawOktas(x, y, STN_R, Math.round((e.cloud ?? 0) / 12.5));
+      }
+
+      // precipitation glyph, just left of the circle
+      const p = precipFor(e.code);
+      if (p && GLYPH[p]) GLYPH[p](x - STN_R - 11, y, 12, PRECIP_TINT[p] || INK);
+
+      // temperature, top-right of the circle
+      ctx.font = 'bold 12px -apple-system, sans-serif';
+      ctx.fillStyle = '#fbbf24';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(`${e.temp}°`, x + STN_R * 0.5, y - STN_R - 2);
     }
 
-    function drawHand(angle, len, w, color, tailLen) {
+    // ── Clock hands ────────────────────────────────────────────────────
+    function drawHand(angle, len, w, color, tail) {
       ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth   = w;
-      ctx.lineCap     = 'round';
+      ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(CX, CY);
       ctx.lineTo(CX + Math.cos(angle)*len, CY + Math.sin(angle)*len);
       ctx.stroke();
-      if (tailLen > 0) {
-        ctx.lineWidth = w * 0.65;
+      if (tail > 0) {
+        ctx.lineWidth = w * 0.6;
         ctx.beginPath();
         ctx.moveTo(CX, CY);
-        ctx.lineTo(CX + Math.cos(angle + Math.PI)*tailLen, CY + Math.sin(angle + Math.PI)*tailLen);
+        ctx.lineTo(CX + Math.cos(angle + Math.PI)*tail, CY + Math.sin(angle + Math.PI)*tail);
         ctx.stroke();
       }
       ctx.restore();
     }
 
+    // ── Frame ──────────────────────────────────────────────────────────
     function render() {
       const now = new Date();
       const hh = now.getHours(), mm = now.getMinutes(),
@@ -269,96 +376,44 @@
 
       ctx.clearRect(0, 0, W, H);
 
-      // Face gradient
-      const bg = ctx.createRadialGradient(CX - 50, CY - 70, 10, CX, CY, FACE_R);
-      bg.addColorStop(0,   '#272848');
-      bg.addColorStop(0.6, '#181830');
-      bg.addColorStop(1,   '#0c0c1e');
-      ctx.beginPath();
-      ctx.arc(CX, CY, FACE_R, 0, Math.PI * 2);
-      ctx.fillStyle = bg;
-      ctx.fill();
+      const bg = ctx.createRadialGradient(CX - 70, CY - 100, 20, CX, CY, FACE_R);
+      bg.addColorStop(0,   '#26284a');
+      bg.addColorStop(0.6, '#161630');
+      bg.addColorStop(1,   '#0a0a1c');
+      ctx.beginPath(); ctx.arc(CX, CY, FACE_R, 0, Math.PI*2);
+      ctx.fillStyle = bg; ctx.fill();
 
-      // Subtle orbit-ring guides
-      [ORBIT_R + ICON_R + 5, ORBIT_R - ICON_R - 4].forEach(r => {
-        ctx.beginPath();
-        ctx.arc(CX, CY, r, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      });
+      ctx.beginPath(); ctx.arc(CX, CY, ORBIT_R, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 1; ctx.stroke();
 
-      // ── Hour weather icons ───────────────────────────────────────────
-      for (let h = 1; h <= 12; h++) {
-        const a  = iconAngle(h);
-        const ix = CX + Math.cos(a) * ORBIT_R;
-        const iy = CY + Math.sin(a) * ORBIT_R;
-        const wx = wxAt(h);
+      for (let h = 1; h <= 12; h++) drawStation(h);
 
-        if (wx) {
-          const [, key, bg] = WMO[wx.code] ?? WMO[3];
-
-          // Coloured badge
-          ctx.beginPath();
-          ctx.arc(ix, iy, ICON_R, 0, Math.PI * 2);
-          ctx.fillStyle = bg;
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(0,0,0,0.38)';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-
-          // Weather symbol (clipped to badge)
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(ix, iy, ICON_R, 0, Math.PI * 2);
-          ctx.clip();
-          const fn = ICONS[key];
-          if (fn) fn(ix, iy, ICON_R);
-          ctx.restore();
-        } else {
-          // Placeholder while loading
-          ctx.beginPath();
-          ctx.arc(ix, iy, 2.5, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(255,255,255,0.12)';
-          ctx.fill();
-        }
+      // centre readout (current hour)
+      const e = wxAt(hh % 12 || 12);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (e) {
+        ctx.font = 'bold 30px -apple-system, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillText(`${e.temp}°C`, CX, CY + 66);
       }
-
-      // ── Centre info ──────────────────────────────────────────────────
-      const curClockH = hh % 12 || 12;
-      const curWx     = wxAt(curClockH);
-
-      ctx.textAlign    = 'center';
-      ctx.textBaseline = 'middle';
-
-      if (curWx) {
-        ctx.font      = 'bold 22px -apple-system, sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.88)';
-        ctx.fillText(`${curWx.temp}°C`, CX, CY + 50);
-      }
-
-      ctx.font      = '10px -apple-system, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      ctx.font = '11px -apple-system, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
       ctx.fillText(
         now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
-        CX, CY + 68
+        CX, CY + 88
       );
 
-      // ── Hands ────────────────────────────────────────────────────────
       const secS  = ss + ms / 1000;
       const minS  = mm + secS / 60;
       const hourS = (hh % 12) + minS / 60;
 
-      drawHand(hourS * 30 * Math.PI/180 - Math.PI/2,  68, 6,   'rgba(255,255,255,0.92)', 22);
-      drawHand(minS  *  6 * Math.PI/180 - Math.PI/2, 108, 3.5, 'rgba(255,255,255,0.88)', 22);
-      drawHand(secS  *  6 * Math.PI/180 - Math.PI/2, 126, 1.5, '#f87171',               30);
+      drawHand(hourS*30*Math.PI/180 - Math.PI/2,  98,  7,   'rgba(255,255,255,0.92)', 28);
+      drawHand(minS * 6*Math.PI/180 - Math.PI/2, 150,  4,   'rgba(255,255,255,0.88)', 28);
+      drawHand(secS * 6*Math.PI/180 - Math.PI/2, 172,  1.8, '#f87171',               40);
 
-      // Centre jewel
-      ctx.beginPath(); ctx.arc(CX, CY, 6,   0, Math.PI*2); ctx.fillStyle = '#f87171'; ctx.fill();
-      ctx.beginPath(); ctx.arc(CX, CY, 2.5, 0, Math.PI*2); ctx.fillStyle = '#fff';    ctx.fill();
+      ctx.beginPath(); ctx.arc(CX, CY, 7,   0, Math.PI*2); ctx.fillStyle = '#f87171'; ctx.fill();
+      ctx.beginPath(); ctx.arc(CX, CY, 3,   0, Math.PI*2); ctx.fillStyle = '#fff';    ctx.fill();
     }
-
-    // ── Bootstrap ──────────────────────────────────────────────────────
 
     (function tick() { render(); requestAnimationFrame(tick); })();
 
