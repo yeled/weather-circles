@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather Circles</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: radial-gradient(ellipse at center, #12122a 0%, #080810 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    }
+    canvas {
+      display: block;
+      border-radius: 50%;
+      box-shadow:
+        0 0 0 6px #1c1c38,
+        0 0 0 9px #252548,
+        0 0 0 11px #1c1c38,
+        0 0 70px rgba(40,40,130,0.45),
+        0 0 130px rgba(20,20,80,0.3);
+    }
+    #status {
+      font-size: 12px;
+      color: rgba(255,255,255,0.28);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c" width="400" height="400"></canvas>
+  <div id="status">London · Loading…</div>
+
+  <script>
+  'use strict';
+  (() => {
+    const CITY = 'London', LAT = 51.5074, LON = -0.1278, TZ = 'Europe/London';
+
+    const canvas = document.getElementById('c');
+    const ctx    = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const CX = W / 2, CY = H / 2;
+
+    const FACE_R  = 182;
+    const ORBIT_R = 150;
+    const ICON_R  = 17;
+
+    // WMO code → [label, iconKey, bgColor]
+    const WMO = {
+      0:  ['Clear sky',           'sun',  '#d97706'],
+      1:  ['Mainly clear',        'sunc', '#b45309'],
+      2:  ['Partly cloudy',       'part', '#4b5563'],
+      3:  ['Overcast',            'cld',  '#374151'],
+      45: ['Fog',                 'fog',  '#6b7280'],
+      48: ['Icy fog',             'fog',  '#9ca3af'],
+      51: ['Light drizzle',       'drz',  '#3b82f6'],
+      53: ['Drizzle',             'drz',  '#2563eb'],
+      55: ['Heavy drizzle',       'drz',  '#1d4ed8'],
+      61: ['Light rain',          'rain', '#2563eb'],
+      63: ['Rain',                'rain', '#1d4ed8'],
+      65: ['Heavy rain',          'hvy',  '#1e3a8a'],
+      71: ['Light snow',          'snow', '#38bdf8'],
+      73: ['Snow',                'snow', '#0ea5e9'],
+      75: ['Heavy snow',          'snow', '#0284c7'],
+      77: ['Snow grains',         'snow', '#38bdf8'],
+      80: ['Showers',             'rain', '#2563eb'],
+      81: ['Showers',             'rain', '#1d4ed8'],
+      82: ['Heavy showers',       'hvy',  '#1e3a8a'],
+      85: ['Snow showers',        'snow', '#0ea5e9'],
+      86: ['Heavy snow showers',  'snow', '#0284c7'],
+      95: ['Thunderstorm',        'thnd', '#6d28d9'],
+      96: ['Thunderstorm+hail',   'thnd', '#5b21b6'],
+      99: ['Thunderstorm+hail',   'thnd', '#4c1d95'],
+    };
+
+    // ── Shared draw primitives ─────────────────────────────────────────
+
+    function drawCloud(x, y, r, fill) {
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.arc(x,           y + r*0.04,  r*0.42, 0, Math.PI*2);
+      ctx.arc(x - r*0.38,  y + r*0.10,  r*0.30, 0, Math.PI*2);
+      ctx.arc(x + r*0.38,  y + r*0.10,  r*0.28, 0, Math.PI*2);
+      ctx.arc(x - r*0.14,  y - r*0.22,  r*0.32, 0, Math.PI*2);
+      ctx.arc(x + r*0.16,  y - r*0.17,  r*0.28, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    function drawSunSymbol(x, y, r) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.92)';
+      ctx.lineWidth   = r * 0.12;
+      ctx.lineCap     = 'round';
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(a)*r*0.44, y + Math.sin(a)*r*0.44);
+        ctx.lineTo(x + Math.cos(a)*r*0.82, y + Math.sin(a)*r*0.82);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(x, y, r*0.32, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.fill();
+    }
+
+    // n drops centered on (x, y), each slanting down-left
+    function drawDrops(x, y, r, n, color, lw) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = lw;
+      ctx.lineCap     = 'round';
+      for (let i = 0; i < n; i++) {
+        const dx = x - (n - 1)*r*0.15 + i*r*0.30;
+        ctx.beginPath();
+        ctx.moveTo(dx,           y + r*0.08);
+        ctx.lineTo(dx - r*0.10,  y + r*0.56);
+        ctx.stroke();
+      }
+    }
+
+    // n snowflakes centered on (x, y)
+    function drawFlakes(x, y, r, n) {
+      ctx.strokeStyle = 'rgba(220,248,255,0.92)';
+      ctx.lineWidth   = r * 0.09;
+      ctx.lineCap     = 'round';
+      for (let i = 0; i < n; i++) {
+        const fx = x - (n - 1)*r*0.15 + i*r*0.30;
+        const fy = y + r*0.42;
+        for (let a = 0; a < 3; a++) {
+          const ang = a * Math.PI / 3;
+          ctx.beginPath();
+          ctx.moveTo(fx + Math.cos(ang)*r*0.16, fy + Math.sin(ang)*r*0.16);
+          ctx.lineTo(fx - Math.cos(ang)*r*0.16, fy - Math.sin(ang)*r*0.16);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // ── Icon draw functions (called inside a clip region) ──────────────
+
+    const ICONS = {
+      sun(x, y, r) {
+        drawSunSymbol(x, y, r);
+      },
+      sunc(x, y, r) {
+        drawSunSymbol(x - r*0.13, y - r*0.14, r*0.70);
+        drawCloud(x + r*0.10, y + r*0.10, r*0.65, 'rgba(240,246,255,0.86)');
+      },
+      part(x, y, r) {
+        drawSunSymbol(x - r*0.08, y - r*0.10, r*0.84);
+        drawCloud(x + r*0.06, y + r*0.08, r*0.78, 'rgba(200,216,238,0.95)');
+      },
+      cld(x, y, r) {
+        drawCloud(x, y, r, 'rgba(215,226,242,0.93)');
+      },
+      fog(x, y, r) {
+        ctx.strokeStyle = 'rgba(232,236,242,0.82)';
+        ctx.lineWidth   = r * 0.13;
+        ctx.lineCap     = 'round';
+        [-0.38, -0.09, 0.19, 0.47].forEach((t, i) => {
+          const inset = (i % 2) * r * 0.2;
+          ctx.beginPath();
+          ctx.moveTo(x - r*0.80 + inset, y + r*t);
+          ctx.lineTo(x + r*0.80 - inset, y + r*t);
+          ctx.stroke();
+        });
+      },
+      drz(x, y, r) {
+        drawCloud(x, y - r*0.20, r*0.78, 'rgba(210,228,252,0.92)');
+        drawDrops(x, y + r*0.08, r, 2, 'rgba(190,216,255,0.82)', r*0.08);
+      },
+      rain(x, y, r) {
+        drawCloud(x, y - r*0.22, r*0.78, 'rgba(190,212,248,0.94)');
+        drawDrops(x, y + r*0.06, r, 3, 'rgba(155,200,255,0.90)', r*0.10);
+      },
+      hvy(x, y, r) {
+        drawCloud(x, y - r*0.24, r*0.78, 'rgba(158,186,226,0.96)');
+        drawDrops(x, y + r*0.04, r, 4, 'rgba(128,178,255,0.92)', r*0.12);
+      },
+      snow(x, y, r) {
+        drawCloud(x, y - r*0.20, r*0.78, 'rgba(215,238,255,0.94)');
+        drawFlakes(x, y, r, 3);
+      },
+      thnd(x, y, r) {
+        drawCloud(x, y - r*0.22, r*0.78, 'rgba(152,138,200,0.96)');
+        ctx.fillStyle = 'rgba(255,242,50,0.97)';
+        ctx.beginPath();
+        const bx = x + r*0.04, by = y + r*0.04;
+        ctx.moveTo(bx,           by);
+        ctx.lineTo(bx - r*0.22,  by + r*0.40);
+        ctx.lineTo(bx + r*0.02,  by + r*0.34);
+        ctx.lineTo(bx - r*0.12,  by + r*0.74);
+        ctx.lineTo(bx + r*0.26,  by + r*0.28);
+        ctx.lineTo(bx + r*0.06,  by + r*0.34);
+        ctx.closePath();
+        ctx.fill();
+      },
+    };
+
+    // ── Weather data ───────────────────────────────────────────────────
+
+    let wxData = null;
+
+    async function fetchWeather() {
+      const url =
+        `https://api.open-meteo.com/v1/forecast` +
+        `?latitude=${LAT}&longitude=${LON}` +
+        `&hourly=weathercode,temperature_2m` +
+        `&forecast_days=2` +
+        `&timezone=${encodeURIComponent(TZ)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.status);
+      wxData = await res.json();
+    }
+
+    // Map clock-face hour (1–12) → weather entry for the current 12 h block
+    function wxAt(clockH) {
+      if (!wxData) return null;
+      const now  = new Date();
+      const isPM = now.getHours() >= 12;
+      const h24  = clockH === 12 ? (isPM ? 12 : 0) : (isPM ? clockH + 12 : clockH);
+      const yy   = now.getFullYear();
+      const mo   = String(now.getMonth() + 1).padStart(2, '0');
+      const dd   = String(now.getDate()).padStart(2, '0');
+      const key  = `${yy}-${mo}-${dd}T${String(h24).padStart(2, '0')}:00`;
+      const idx  = wxData.hourly.time.indexOf(key);
+      if (idx === -1) return null;
+      return {
+        code: wxData.hourly.weathercode[idx],
+        temp: Math.round(wxData.hourly.temperature_2m[idx]),
+      };
+    }
+
+    // ── Clock rendering ────────────────────────────────────────────────
+
+    function iconAngle(h) {
+      return (h * 30 - 90) * Math.PI / 180;
+    }
+
+    function drawHand(angle, len, w, color, tailLen) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = w;
+      ctx.lineCap     = 'round';
+      ctx.beginPath();
+      ctx.moveTo(CX, CY);
+      ctx.lineTo(CX + Math.cos(angle)*len, CY + Math.sin(angle)*len);
+      ctx.stroke();
+      if (tailLen > 0) {
+        ctx.lineWidth = w * 0.65;
+        ctx.beginPath();
+        ctx.moveTo(CX, CY);
+        ctx.lineTo(CX + Math.cos(angle + Math.PI)*tailLen, CY + Math.sin(angle + Math.PI)*tailLen);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function render() {
+      const now = new Date();
+      const hh = now.getHours(), mm = now.getMinutes(),
+            ss = now.getSeconds(), ms = now.getMilliseconds();
+
+      ctx.clearRect(0, 0, W, H);
+
+      // Face gradient
+      const bg = ctx.createRadialGradient(CX - 50, CY - 70, 10, CX, CY, FACE_R);
+      bg.addColorStop(0,   '#272848');
+      bg.addColorStop(0.6, '#181830');
+      bg.addColorStop(1,   '#0c0c1e');
+      ctx.beginPath();
+      ctx.arc(CX, CY, FACE_R, 0, Math.PI * 2);
+      ctx.fillStyle = bg;
+      ctx.fill();
+
+      // Subtle orbit-ring guides
+      [ORBIT_R + ICON_R + 5, ORBIT_R - ICON_R - 4].forEach(r => {
+        ctx.beginPath();
+        ctx.arc(CX, CY, r, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+
+      // ── Hour weather icons ───────────────────────────────────────────
+      for (let h = 1; h <= 12; h++) {
+        const a  = iconAngle(h);
+        const ix = CX + Math.cos(a) * ORBIT_R;
+        const iy = CY + Math.sin(a) * ORBIT_R;
+        const wx = wxAt(h);
+
+        if (wx) {
+          const [, key, bg] = WMO[wx.code] ?? WMO[3];
+
+          // Coloured badge
+          ctx.beginPath();
+          ctx.arc(ix, iy, ICON_R, 0, Math.PI * 2);
+          ctx.fillStyle = bg;
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(0,0,0,0.38)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // Weather symbol (clipped to badge)
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(ix, iy, ICON_R, 0, Math.PI * 2);
+          ctx.clip();
+          const fn = ICONS[key];
+          if (fn) fn(ix, iy, ICON_R);
+          ctx.restore();
+        } else {
+          // Placeholder while loading
+          ctx.beginPath();
+          ctx.arc(ix, iy, 2.5, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.12)';
+          ctx.fill();
+        }
+      }
+
+      // ── Centre info ──────────────────────────────────────────────────
+      const curClockH = hh % 12 || 12;
+      const curWx     = wxAt(curClockH);
+
+      ctx.textAlign    = 'center';
+      ctx.textBaseline = 'middle';
+
+      if (curWx) {
+        ctx.font      = 'bold 22px -apple-system, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.88)';
+        ctx.fillText(`${curWx.temp}°C`, CX, CY + 50);
+      }
+
+      ctx.font      = '10px -apple-system, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.28)';
+      ctx.fillText(
+        now.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
+        CX, CY + 68
+      );
+
+      // ── Hands ────────────────────────────────────────────────────────
+      const secS  = ss + ms / 1000;
+      const minS  = mm + secS / 60;
+      const hourS = (hh % 12) + minS / 60;
+
+      drawHand(hourS * 30 * Math.PI/180 - Math.PI/2,  68, 6,   'rgba(255,255,255,0.92)', 22);
+      drawHand(minS  *  6 * Math.PI/180 - Math.PI/2, 108, 3.5, 'rgba(255,255,255,0.88)', 22);
+      drawHand(secS  *  6 * Math.PI/180 - Math.PI/2, 126, 1.5, '#f87171',               30);
+
+      // Centre jewel
+      ctx.beginPath(); ctx.arc(CX, CY, 6,   0, Math.PI*2); ctx.fillStyle = '#f87171'; ctx.fill();
+      ctx.beginPath(); ctx.arc(CX, CY, 2.5, 0, Math.PI*2); ctx.fillStyle = '#fff';    ctx.fill();
+    }
+
+    // ── Bootstrap ──────────────────────────────────────────────────────
+
+    (function tick() { render(); requestAnimationFrame(tick); })();
+
+    fetchWeather()
+      .then(() => { document.getElementById('status').textContent = `${CITY} · Live weather`; })
+      .catch(() => { document.getElementById('status').textContent = `${CITY} · Weather unavailable`; });
+
+    setInterval(() => fetchWeather().catch(() => {}), 30 * 60 * 1000);
+  })();
+  </script>
+</body>
+</html>
