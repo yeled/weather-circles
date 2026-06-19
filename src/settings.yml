@@ -6,9 +6,15 @@ static_data: ''
 polling_verb: get
 framework_version: 3.1.1
 serverless_language: ''
-polling_url: https://mb.spodder.com/weather-circles/london.json
+polling_url: https://mb.spodder.com/weather-circles/weather.cgi?q={{ location | url_encode }}
 polling_headers: ''
-polling_body: https://mb.spodder.com/weather-circles/london.json
+polling_body: ''
 id: 341571
 name: Weather Circles
 refresh_interval: 15
+custom_fields:
+- keyname: location
+  field_type: string
+  name: Location
+  description: City to show weather for, e.g. Manchester. Leave as London if unsure.
+  default: London
