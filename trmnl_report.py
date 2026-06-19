@@ -55,6 +55,32 @@ WMO = {
 COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 
 
+def geocode(query):
+    """Resolve a place name to coordinates via Open-Meteo's geocoding API."""
+    params = urllib.parse.urlencode(
+        {"name": query, "count": 1, "language": "en", "format": "json"})
+    url = f"https://geocoding-api.open-meteo.com/v1/search?{params}"
+    with urllib.request.urlopen(url, timeout=15) as resp:
+        results = (json.load(resp).get("results") or [])
+    if not results:
+        raise ValueError(f"no location found for {query!r}")
+    r = results[0]
+    label = ", ".join(p for p in (r.get("name"), r.get("country_code")) if p)
+    return r["latitude"], r["longitude"], label, r.get("timezone", "auto")
+
+
+def resolve_location(q=None, lat=None, lon=None, name=None, tz=None):
+    """Pick a location: explicit lat/lon wins, then a place-name lookup,
+    else default to London. Returns (lat, lon, name, tz)."""
+    if lat is not None and lon is not None:
+        lat, lon = float(lat), float(lon)
+        return lat, lon, name or f"{lat:.4g},{lon:.4g}", tz or "auto"
+    if q:
+        glat, glon, gname, gtz = geocode(q)
+        return glat, glon, name or gname, tz or gtz
+    return 51.5074, -0.1278, name or "London", tz or "Europe/London"
+
+
 def fetch(lat, lon, tz):
     params = urllib.parse.urlencode({
         "latitude": lat, "longitude": lon,
@@ -296,10 +322,12 @@ def post_webhook(url, payload):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--lat", type=float, default=51.5074)
-    ap.add_argument("--lon", type=float, default=-0.1278)
-    ap.add_argument("--name", default="London")
-    ap.add_argument("--tz", default="Europe/London")
+    ap.add_argument("--q", help="place name to geocode (e.g. Manchester); "
+                                "ignored if --lat/--lon are given")
+    ap.add_argument("--lat", type=float, help="latitude (overrides --q)")
+    ap.add_argument("--lon", type=float, help="longitude (overrides --q)")
+    ap.add_argument("--name", help="location label (default: looked up / London)")
+    ap.add_argument("--tz", help="IANA timezone (default: auto / Europe/London)")
     ap.add_argument("--days", type=int, default=2, help="forecast days to show (1-2)")
     ap.add_argument("--webhook", default=os.environ.get("TRMNL_WEBHOOK_URL"),
                     help="TRMNL private-plugin webhook URL (or TRMNL_WEBHOOK_URL env)")
@@ -316,11 +344,13 @@ def main():
     args = ap.parse_args()
 
     try:
-        data = fetch(args.lat, args.lon, args.tz)
+        lat, lon, name, tz = resolve_location(
+            args.q, args.lat, args.lon, args.name, args.tz)
+        data = fetch(lat, lon, tz)
     except Exception as e:                       # noqa: BLE001
         sys.exit(f"weather fetch failed: {e}")
 
-    payload = build_payload(data, args.name, args.days)
+    payload = build_payload(data, name, args.days)
 
     if args.preview:
         with open(args.preview, "w") as f:
