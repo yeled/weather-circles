@@ -20,7 +20,6 @@ custom_fields:
   default: London
 - keyname: doesnt_matter
   name: About This Plugin
-  category: weather
   field_type: author_bio
   description: 2-day forecast using UK Met Office–style weather station circles
   github_url: https://github.com/yeled/weather-circles
