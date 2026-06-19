@@ -16,14 +16,17 @@ and this file executable:
     Options +ExecCGI
     AddHandler cgi-script .cgi
 
-Edit REPO_DIR to the absolute path of this checkout.
+REPO_DIR defaults to this script's own directory (deploy weather.cgi inside
+the checkout, alongside trmnl_report.py). Override with WEATHER_CIRCLES_DIR
+if you keep them apart.
 """
 import json
 import os
 import sys
 import urllib.parse
 
-REPO_DIR = "/Users/yeled/src/weather-circles"   # <-- absolute path to checkout
+REPO_DIR = (os.environ.get("WEATHER_CIRCLES_DIR")
+            or os.path.dirname(os.path.abspath(__file__)))
 DAYS = 2
 
 sys.path.insert(0, REPO_DIR)
