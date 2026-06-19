@@ -1,59 +1,47 @@
 {% comment %} Weather Circles — full (800x480), 2-day view.
-  Styling avoids the properties the limited_inline_styles lint check counts:
-  text sizing via the `font` shorthand, spacing via gap, alignment via flex
-  (flex:1 / place-content), separators via border, outer inset from the
-  framework screen gap. {% endcomment %}
+  Text uses the native framework classes (value/title/label) for crisp e-ink
+  rendering; custom CSS only handles structural layout (flex/grid/gap/border/
+  svg sizing) and avoids the limited_inline_styles-flagged properties. {% endcomment %}
 <style>
-  .wc        { --f:'Inter',-apple-system,Helvetica,Arial,sans-serif;
-               height:100%; display:flex; flex-direction:column; color:#000; }
+  .wc        { height:100%; display:flex; flex-direction:column; }
   .wc-main   { display:flex; flex:1; gap:18px; min-height:0; }
   .wc-cur    { flex:0 0 224px; display:flex; flex-direction:column;
                align-items:center; place-content:center; gap:4px;
                border-right:2px solid #000; }
   .wc-cur svg{ width:140px; height:140px; }
-  .wc-temp   { font:800 58px/1 var(--f); }
-  .wc-sum    { font:600 22px/1.1 var(--f); }
-  .wc-hl     { font:600 17px/1.2 var(--f); }
-  .wc-wind   { font:400 15px/1.2 var(--f); color:#333; }
   .wc-days   { flex:1; display:flex; flex-direction:column; min-width:0; }
   .wc-day    { flex:1; display:flex; flex-direction:column; gap:2px; min-height:0; }
   .wc-day + .wc-day { border-top:2px solid #000; }
   .wc-dayhdr { display:flex; align-items:baseline; gap:8px; }
-  .wc-dayname{ flex:1; font:800 22px/1.2 var(--f); }
-  .wc-dayhl  { font:600 17px/1.2 var(--f); }
   .wc-row    { flex:1; display:grid; grid-template-columns:repeat(4,1fr); align-items:center; }
   .wc-cell   { display:flex; flex-direction:column; align-items:center; gap:1px; }
   .wc-cell svg{ width:74px; height:74px; }
-  .wc-hr     { font:700 15px/1 var(--f); }
-  .wc-ct     { font:600 17px/1 var(--f); }
-  .wc-bar    { display:flex; align-items:center; gap:8px; height:38px;
-               border-top:2px solid #000; }
-  .wc-loc    { flex:1; font:600 16px/1 var(--f); }
-  .wc-upd    { font:600 16px/1 var(--f); }
+  .wc-bar    { display:flex; align-items:center; gap:8px; height:38px; border-top:2px solid #000; }
+  .grow      { flex:1; }
 </style>
 
 <div class="wc">
   <div class="wc-main">
     <div class="wc-cur">
       {{ current.svg }}
-      <div class="wc-temp">{{ current.temp }}&deg;</div>
-      <div class="wc-sum">{{ current.summary }}</div>
-      <div class="wc-hl">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</div>
-      <div class="wc-wind">{{ current.wind }} &middot; {{ current.oktas }}/8 cloud</div>
+      <span class="value value--large">{{ current.temp }}&deg;</span>
+      <span class="title title--small">{{ current.summary }}</span>
+      <span class="label">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
+      <span class="label label--small">{{ current.wind }} &middot; {{ current.oktas }}/8 cloud</span>
     </div>
     <div class="wc-days">
       {% for d in days %}
       <div class="wc-day">
         <div class="wc-dayhdr">
-          <span class="wc-dayname">{{ d.label }}</span>
-          <span class="wc-dayhl">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
+          <span class="title title--small grow">{{ d.label }}</span>
+          <span class="label label--small">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
         </div>
         <div class="wc-row">
           {% for c in d.cells %}
           <div class="wc-cell">
-            <div class="wc-hr">{{ c.label }}</div>
+            <span class="label label--small">{{ c.label }}</span>
             {{ c.svg }}
-            <div class="wc-ct">{{ c.temp }}&deg;</div>
+            <span class="value value--xsmall">{{ c.temp }}&deg;</span>
           </div>
           {% endfor %}
         </div>
@@ -62,7 +50,7 @@
     </div>
   </div>
   <div class="wc-bar">
-    <span class="wc-loc">{{ location }}</span>
-    <span class="wc-upd">Updated {{ generated_at }}</span>
+    <span class="label grow">{{ location }}</span>
+    <span class="label">Updated {{ generated_at }}</span>
   </div>
 </div>

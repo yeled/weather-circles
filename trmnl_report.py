@@ -156,6 +156,7 @@ LAYOUTS = {
     "quadrant":        (400, 240),
 }
 TRMNL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "src")
+FRAMEWORK_VERSION = "3.1.1"   # matches src/settings.yml
 
 
 def _lookup(expr, ctx):
@@ -222,13 +223,21 @@ def render_layout(layout, payload):
     with open(os.path.join(TRMNL_DIR, f"{layout}.liquid")) as f:
         inner = render_liquid(f.read(), payload)
     w, h = LAYOUTS[layout]
-    # TRMNL's framework insets the view by --gap (10px) of screen padding;
-    # mirror that here so the local preview matches the device.
-    return (f'<!DOCTYPE html><html><head><meta charset="utf-8"><style>'
-            f'html,body{{margin:0;padding:0}}*{{box-sizing:border-box}}'
-            f'.trmnl{{width:{w}px;height:{h}px;padding:10px;background:#fff;'
-            f'color:#000;overflow:hidden}}</style></head><body>'
-            f'<div class="trmnl">{inner}</div></body></html>')
+    # Replicate TRMNL's real render wrapper so the preview uses the actual
+    # framework CSS/fonts: <base> resolves the framework's root-relative font
+    # URLs, body.environment.trmnl + .screen--og set the design-system vars,
+    # and .view--full fills the (screen - 2*gap) area. Size the screen to the
+    # layout so each renders at its native dimensions.
+    return (
+        '<!DOCTYPE html><html><head><meta charset="utf-8">'
+        '<base href="https://trmnl.com/">'
+        f'<link rel="stylesheet" href="https://trmnl.com/css/{FRAMEWORK_VERSION}/plugins.css">'
+        '<style>html,body{margin:0;padding:0}</style></head>'
+        '<body class="environment trmnl">'
+        f'<div class="screen screen--og" style="--screen-w:{w}px;--screen-h:{h}px;'
+        f'width:{w}px;height:{h}px;background:#fff">'
+        f'<div class="view view--full">{inner}</div>'
+        '</div></body></html>')
 
 
 def find_chrome():
@@ -261,6 +270,8 @@ def render_png(payload, out, layout):
         subprocess.run([
             chrome, "--headless=new", "--disable-gpu", "--hide-scrollbars",
             "--force-device-scale-factor=1", f"--window-size={w},{h}",
+            # let the framework CSS + web fonts finish loading before capture
+            "--virtual-time-budget=5000", "--default-background-color=FFFFFFFF",
             f"--screenshot={out}", f"file://{html}",
         ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     finally:

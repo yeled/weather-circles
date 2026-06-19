@@ -1,48 +1,40 @@
 {% comment %} Weather Circles — half_horizontal (800x240), 2-day view.
-  Custom CSS avoids lint-flagged properties (see full.liquid). {% endcomment %}
+  Native framework text classes; custom CSS only for structural layout. {% endcomment %}
 <style>
-  .wc        { --f:'Inter',-apple-system,Helvetica,Arial,sans-serif;
-               height:100%; display:flex; color:#000; }
+  .wc        { height:100%; display:flex; }
   .wc-cur    { flex:0 0 196px; display:flex; flex-direction:column;
                align-items:center; place-content:center; gap:2px;
                border-right:2px solid #000; }
   .wc-cur svg{ width:110px; height:110px; }
-  .wc-temp   { font:800 40px/1 var(--f); }
-  .wc-sum    { font:600 15px/1.1 var(--f); }
-  .wc-hl     { font:400 12px/1.2 var(--f); }
   .wc-days   { flex:1; display:flex; flex-direction:column; min-width:0; }
   .wc-day    { flex:1; display:flex; align-items:center; gap:10px; min-height:0; }
   .wc-day + .wc-day { border-top:2px solid #000; }
   .wc-dayhdr { flex:0 0 84px; display:flex; flex-direction:column; }
-  .wc-dayname{ font:800 16px/1.1 var(--f); }
-  .wc-dayhl  { font:600 12px/1.2 var(--f); }
   .wc-row    { flex:1; display:grid; grid-template-columns:repeat(4,1fr); align-items:center; }
   .wc-cell   { display:flex; flex-direction:column; align-items:center; }
   .wc-cell svg{ width:56px; height:56px; }
-  .wc-hr     { font:700 12px/1 var(--f); }
-  .wc-ct     { font:600 13px/1 var(--f); }
 </style>
 
 <div class="wc">
   <div class="wc-cur">
     {{ current.svg }}
-    <div class="wc-temp">{{ current.temp }}&deg;</div>
-    <div class="wc-sum">{{ current.summary }}</div>
-    <div class="wc-hl">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</div>
+    <span class="value">{{ current.temp }}&deg;</span>
+    <span class="label label--small">{{ current.summary }}</span>
+    <span class="label label--small">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
   </div>
   <div class="wc-days">
     {% for d in days %}
     <div class="wc-day">
       <div class="wc-dayhdr">
-        <span class="wc-dayname">{{ d.label }}</span>
-        <span class="wc-dayhl">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
+        <span class="title title--small">{{ d.label }}</span>
+        <span class="label label--small">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
       </div>
       <div class="wc-row">
         {% for c in d.cells %}
         <div class="wc-cell">
-          <div class="wc-hr">{{ c.label }}</div>
+          <span class="label label--small">{{ c.label }}</span>
           {{ c.svg }}
-          <div class="wc-ct">{{ c.temp }}&deg;</div>
+          <span class="value value--xxsmall">{{ c.temp }}&deg;</span>
         </div>
         {% endfor %}
       </div>
