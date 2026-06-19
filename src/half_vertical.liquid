@@ -3,12 +3,13 @@
 <style>
   .wc        { --f:'Inter',-apple-system,Helvetica,Arial,sans-serif;
                height:100%; display:flex; flex-direction:column; color:#000; }
-  .wc-cur    { display:flex; flex-direction:column; align-items:center; gap:2px;
+  .wc-cur    { display:flex; align-items:center; place-content:center; gap:14px;
                border-bottom:2px solid #000; }
-  .wc-cur svg{ width:92px; height:92px; }
-  .wc-temp   { font:800 44px/1 var(--f); }
+  .wc-cur svg{ width:128px; height:128px; }
+  .wc-curtxt { display:flex; flex-direction:column; align-items:flex-start; }
+  .wc-temp   { font:800 50px/1 var(--f); }
   .wc-sum    { font:600 19px/1.1 var(--f); }
-  .wc-hl     { font:400 14px/1.2 var(--f); }
+  .wc-hl     { font:400 13px/1.3 var(--f); }
   .wc-days   { flex:1; display:flex; flex-direction:column; min-height:0; }
   .wc-day    { flex:1; display:flex; flex-direction:column; gap:2px; min-height:0; }
   .wc-day + .wc-day { border-top:2px solid #000; }
@@ -27,9 +28,12 @@
 <div class="wc">
   <div class="wc-cur">
     {{ current.svg }}
-    <div class="wc-temp">{{ current.temp }}&deg;</div>
-    <div class="wc-sum">{{ current.summary }}</div>
-    <div class="wc-hl">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg; &middot; {{ current.wind }}</div>
+    <div class="wc-curtxt">
+      <div class="wc-temp">{{ current.temp }}&deg;</div>
+      <div class="wc-sum">{{ current.summary }}</div>
+      <div class="wc-hl">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</div>
+      <div class="wc-hl">{{ current.wind }}</div>
+    </div>
   </div>
   <div class="wc-days">
     {% for d in days %}
