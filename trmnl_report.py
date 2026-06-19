@@ -94,6 +94,12 @@ HOURLY_FIELDS = ("weather_code", "temperature_2m", "cloud_cover",
 DAY_LABELS = ["Today", "Tomorrow"]
 
 
+def _ampm(hh):
+    suffix = "am" if hh < 12 else "pm"
+    h12 = hh % 12 or 12
+    return f"{h12}{suffix}"
+
+
 def _hour_cell(h, date, hh):
     """Build a forecast cell for a given calendar date + hour, or None."""
     try:
@@ -101,7 +107,7 @@ def _hour_cell(h, date, hh):
     except ValueError:
         return None
     c = cell({k: h[k][j] for k in HOURLY_FIELDS})
-    c["label"] = f"{hh:02d}"
+    c["label"] = _ampm(hh)
     return c
 
 
@@ -119,7 +125,7 @@ def _day_svg(h, date, daily, idx):
     return wc.build_svg(entry, INK, mono=True, show_temp=False)
 
 
-def build_payload(data, name, days_count=2, slots=(9, 13, 17, 21)):
+def build_payload(data, name, days_count=2, slots=(8, 12, 16, 20)):
     cur, h, daily = data["current"], data["hourly"], data["daily"]
 
     current = cell(cur)
