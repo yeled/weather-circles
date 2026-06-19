@@ -3,6 +3,7 @@ _build/
 
 # rasterised / generated previews
 *.png
+!docs/screenshot.png
 
 # scratch SVG renders
 london-now*.svg
