@@ -220,6 +220,14 @@ def render_liquid(template, ctx):
     """
     template = re.sub(r"{%-?\s*comment\s*-?%}.*?{%-?\s*endcomment\s*-?%}",
                       "", template, flags=re.S)
+    # On-device, `{% render 'title_bar' %}` is provided by TRMNL. For the local
+    # preview, substitute a stand-in using the same .title_bar framework markup.
+    title_bar = (
+        '<div class="title_bar">'
+        '<span class="title">Weather Circles</span>'
+        f'<span class="instance">{_lookup("location", ctx) or ""}</span>'
+        '</div>')
+    template = re.sub(r"{%-?\s*render\s+'title_bar'\s*-?%}", title_bar, template)
     return _render(template, ctx)
 
 
