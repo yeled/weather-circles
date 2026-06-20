@@ -12,7 +12,9 @@
   .wc-dayhdr { flex:0 0 84px; display:flex; flex-direction:column; }
   .wc-row    { flex:1; display:grid; grid-template-columns:repeat(4,1fr); align-items:center; }
   .wc-cell   { display:flex; flex-direction:column; align-items:center; }
-  .wc-cell svg{ width:56px; height:56px; }
+  .wc-plot   { position:relative; line-height:0; }
+  .wc-plot svg{ width:66px; height:66px; }
+  .wc-temp   { position:absolute; left:1px; top:-1px; line-height:1; }
 </style>
 
 <div class="wc">
@@ -32,9 +34,11 @@
       <div class="wc-row">
         {% for c in d.cells %}
         <div class="wc-cell">
+          <div class="wc-plot">
+            {{ c.svg }}
+            <span class="value value--xxsmall wc-temp">{{ c.temp }}</span>
+          </div>
           <span class="label label--small">{{ c.label }}</span>
-          {{ c.svg }}
-          <span class="value value--xxsmall">{{ c.temp }}&deg;</span>
         </div>
         {% endfor %}
       </div>

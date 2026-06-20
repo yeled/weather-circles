@@ -23,7 +23,7 @@ import urllib.request
 SIZE      = 260
 CX = CY   = SIZE / 2
 R         = 48          # station-circle radius
-BARB_LEN  = 56          # wind-shaft length beyond the circle
+BARB_LEN  = 66          # wind-shaft length beyond the circle
 STROKE    = 6           # circle / wedge outline weight
 
 
@@ -110,10 +110,12 @@ def draw_oktas(oktas, code, ink):
 
 # ── Wind barb ──────────────────────────────────────────────────────────
 def draw_barb(dir_deg, knots, ink):
+    # Bold feathers so they survive being scaled down to e-ink cell size.
+    # Half barb = 5 kt, full barb = 10 kt, pennant (triangle) = 50 kt.
     # Calm: extra ring, no shaft.
     if knots < 1:
-        return [f'<circle cx="{CX}" cy="{CY}" r="{R + 5}" fill="none" '
-                f'stroke="{ink}" stroke-width="2"/>']
+        return [f'<circle cx="{CX}" cy="{CY}" r="{R + 6}" fill="none" '
+                f'stroke="{ink}" stroke-width="3"/>']
 
     a = math.radians(dir_deg)                 # direction wind blows FROM
     ux, uy = math.sin(a), -math.cos(a)        # outward unit vector
@@ -121,7 +123,7 @@ def draw_barb(dir_deg, knots, ink):
 
     sx, sy = CX + ux * R,             CY + uy * R
     ex, ey = CX + ux * (R + BARB_LEN), CY + uy * (R + BARB_LEN)
-    parts = [line(sx, sy, ex, ey, ink, 4)]
+    parts = [line(sx, sy, ex, ey, ink, 6)]
 
     def at(f):                                # point a fraction along the shaft
         d = R + BARB_LEN * f
@@ -129,24 +131,24 @@ def draw_barb(dir_deg, knots, ink):
 
     kt   = round(knots / 5) * 5
     t    = 1.0                                # 1 = tip, 0 = circle edge
-    step = 8 / BARB_LEN
-    FB, HB = 12, 6                            # full / half barb length
+    step = 13 / BARB_LEN
+    FB, HB = 24, 13                           # full / half barb length
 
     while kt >= 50:                           # pennant (filled triangle)
         bx, by = at(t)
-        cx2, cy2 = at(t - step * 1.6)
+        cx2, cy2 = at(t - step * 1.7)
         parts.append(f'<polygon points="{bx:.2f},{by:.2f} '
                      f'{bx + px*FB:.2f},{by + py*FB:.2f} '
                      f'{cx2:.2f},{cy2:.2f}" fill="{ink}"/>')
-        t -= step * 1.9; kt -= 50
+        t -= step * 2.0; kt -= 50
     while kt >= 10:                           # full barb
         bx, by = at(t)
-        parts.append(line(bx, by, bx + px*FB + ux*4, by + py*FB + uy*4, ink, 4))
+        parts.append(line(bx, by, bx + px*FB + ux*6, by + py*FB + uy*6, ink, 6))
         t -= step; kt -= 10
     if kt >= 5:                               # half barb
         if t > 0.85: t -= step                # keep it off the very tip
         bx, by = at(t)
-        parts.append(line(bx, by, bx + px*HB + ux*2, by + py*HB + uy*2, ink, 4))
+        parts.append(line(bx, by, bx + px*HB + ux*3, by + py*HB + uy*3, ink, 6))
     return parts
 
 

@@ -14,8 +14,10 @@
   .wc-day + .wc-day { border-top:2px solid #000; }
   .wc-dayhdr { display:flex; align-items:baseline; gap:8px; }
   .wc-row    { flex:1; display:grid; grid-template-columns:repeat(4,1fr); align-items:center; }
-  .wc-cell   { display:flex; flex-direction:column; align-items:center; gap:1px; }
-  .wc-cell svg{ width:74px; height:74px; }
+  .wc-cell   { display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .wc-plot   { position:relative; line-height:0; }
+  .wc-plot svg{ width:86px; height:86px; }
+  .wc-temp   { position:absolute; left:2px; top:0; line-height:1; }  /* station-model: temp upper-left */
   .wc-bar    { display:flex; align-items:center; gap:8px; height:38px; border-top:2px solid #000; }
   .grow      { flex:1; }
 </style>
@@ -39,9 +41,11 @@
         <div class="wc-row">
           {% for c in d.cells %}
           <div class="wc-cell">
+            <div class="wc-plot">
+              {{ c.svg }}
+              <span class="value value--xsmall wc-temp">{{ c.temp }}</span>
+            </div>
             <span class="label label--small">{{ c.label }}</span>
-            {{ c.svg }}
-            <span class="value value--xsmall">{{ c.temp }}&deg;</span>
           </div>
           {% endfor %}
         </div>
