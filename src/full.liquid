@@ -52,5 +52,8 @@
       {% endfor %}
     </div>
   </div>
-  {% render 'title_bar' %}
+  <div class="title_bar">
+    <span class="title">Weather Circles</span>
+    <span class="instance">{{ location }} &middot; {{ generated_at }}</span>
+  </div>
 </div>
