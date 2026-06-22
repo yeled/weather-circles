@@ -1,7 +1,7 @@
 {% comment %} Weather Circles — half_vertical (400x480), 2-day view.
   Native framework text classes; custom CSS only for structural layout. {% endcomment %}
 <style>
-  .wc        { width:100%; height:100%; display:flex; flex-direction:column; }
+  .wc        { height:100%; display:flex; flex-direction:column; }
   .wc-cur    { display:flex; align-items:center; place-content:center; gap:14px;
                border-bottom:2px solid #000; }
   .wc-cur svg{ width:128px; height:128px; }
@@ -18,7 +18,7 @@
   .grow      { flex:1; }
 </style>
 
-<div class="wc layout layout--col">
+<div class="wc layout--col">
   <div class="wc-cur">
     {{ current.svg }}
     <div class="wc-curtxt">

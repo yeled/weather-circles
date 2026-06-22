@@ -1,7 +1,7 @@
 {% comment %} Weather Circles — quadrant (400x240), 2-day summary.
   Native framework text classes; custom CSS only for structural layout. {% endcomment %}
 <style>
-  .wc        { width:100%; height:100%; display:flex; }
+  .wc        { height:100%; display:flex; }
   .wc-cur    { flex:0 0 210px; display:flex; align-items:center; place-content:center;
                gap:10px; border-right:2px solid #000; }
   .wc-cur svg{ width:114px; height:114px; }
@@ -11,7 +11,7 @@
   .wc-dcard svg{ width:66px; height:66px; }
 </style>
 
-<div class="wc layout">
+<div class="wc">
   <div class="wc-cur">
     {{ current.svg }}
     <div class="wc-curtxt">
