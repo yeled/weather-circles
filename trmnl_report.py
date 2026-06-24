@@ -173,7 +173,7 @@ def _day_svg(h, date, daily, idx):
     return wc.build_svg(entry, INK, mono=True, show_temp=False)
 
 
-def build_payload(data, name, days_count=2, slots=(8, 12, 16, 20)):
+def build_payload(data, name, days_count=1, slots=(8, 10, 12, 14, 16, 18, 20)):
     cur, h, daily = data["current"], data["hourly"], data["daily"]
 
     current = cell(cur)
@@ -352,7 +352,10 @@ def main():
     ap.add_argument("--lon", type=float, help="longitude (overrides --q)")
     ap.add_argument("--name", help="location label (default: looked up / London)")
     ap.add_argument("--tz", help="IANA timezone (default: auto / Europe/London)")
-    ap.add_argument("--days", type=int, default=2, help="forecast days to show (1-2)")
+    ap.add_argument("--days", type=int, default=1,
+                    help="forecast days to show (default 1; the 7-slot day "
+                         "already wraps to 2 rows, so 2 days overflows the "
+                         "fixed 4-column grid)")
     ap.add_argument("--webhook", default=os.environ.get("TRMNL_WEBHOOK_URL"),
                     help="TRMNL private-plugin webhook URL (or TRMNL_WEBHOOK_URL env)")
     ap.add_argument("--json", action="store_true", help="print payload JSON to stdout")
