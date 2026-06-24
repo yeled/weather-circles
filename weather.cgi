@@ -7,6 +7,8 @@ Point a TRMNL polling plugin at e.g.:
     .../weather.cgi?q=Paris
     .../weather.cgi?lat=51.5&lon=-0.13&name=London   (lat/lon override q)
     .../weather.cgi                                  (defaults to London)
+    .../weather.cgi?days=1&hours=6,9,12,15,18,21,0,3  (1-day/8-slot, custom hours)
+    .../weather.cgi?days=2&hours=7,11,15,19           (2-day/4-slot, custom hours)
 
 Returns the unwrapped days[] JSON the Liquid layouts expect.
 
@@ -52,8 +54,11 @@ try:
         tz=_param(qs, "tz"),
     )
     lat, lon, name, tz = location
+    days  = _param(qs, "days")
+    days_count = int(days) if days in ("1", "2") else DAYS
+    slots = tr.resolve_slots(days_count, _param(qs, "hours"))
     data    = tr.fetch(lat, lon, tz)
-    payload = tr.build_payload(data, name, DAYS)
+    payload = tr.build_payload(data, name, days_count, slots)
     body    = json.dumps(payload, separators=(",", ":"))
     sys.stdout.write("Content-Type: application/json\r\n")
     sys.stdout.write("Cache-Control: max-age=300\r\n\r\n")
