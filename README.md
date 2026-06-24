@@ -7,6 +7,16 @@ station circles (cloud-cover oktas + wind barbs) instead of icons.
 
 ![Weather Circles — full layout](./docs/screenshot.png)
 
+## Forecast slots
+
+Each day shows four station circles (8am, 12pm, 4pm, 8pm). Rather than
+sampling only that exact hour, each slot scans every hour up to the next
+slot and renders whichever hour is most significant — ranked by
+precipitation severity (thunder > heavy rain > snow shower > snow > sleet >
+rain > drizzle > fog > mist), falling back to the cloudiest hour if none of
+them have precipitation. That way a shower that falls between two slots
+still shows up in the icon instead of disappearing between samples.
+
 ## Deploying the CGI (dynamic location)
 
 `weather.cgi` builds the polling JSON per request, with the location taken

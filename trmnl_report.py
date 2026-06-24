@@ -126,12 +126,34 @@ def _ampm(hh):
     return f"{h12}{suffix}"
 
 
-def _hour_cell(h, date, hh):
-    """Build a forecast cell for a given calendar date + hour, or None."""
-    try:
-        j = h["time"].index(f"{date}T{hh:02d}:00")
-    except ValueError:
+# Precipitation severity, worst to mildest, for picking the one hour that
+# best represents a multi-hour slot (see _hour_cell).
+PRECIP_SEVERITY = {
+    "thunder": 9, "heavy_rain": 8, "snow_shower": 7, "snow": 6, "sleet": 5,
+    "rain": 4, "drizzle": 3, "fog": 2, "mist": 1,
+}
+
+
+def _severity(code, cloud):
+    return (PRECIP_SEVERITY.get(wc.precip_for(code), 0), cloud or 0)
+
+
+def _hour_cell(h, date, hh, step):
+    """Build a forecast cell for the [hh, hh+step) window, or None.
+
+    Scans every hour in the window rather than just hh itself, and uses the
+    worst (most severe precipitation, then cloudiest) hour's snapshot — so
+    rain that falls between two slot hours still shows up in the icon.
+    """
+    idxs = []
+    for t in range(hh, hh + step):
+        try:
+            idxs.append(h["time"].index(f"{date}T{t:02d}:00"))
+        except ValueError:
+            pass
+    if not idxs:
         return None
+    j = max(idxs, key=lambda i: _severity(h["weather_code"][i], h["cloud_cover"][i]))
     c = cell({k: h[k][j] for k in HOURLY_FIELDS})
     c["label"] = _ampm(hh)
     return c
@@ -158,10 +180,12 @@ def build_payload(data, name, days_count=2, slots=(8, 12, 16, 20)):
     current["high"] = round(daily["temperature_2m_max"][0])
     current["low"]  = round(daily["temperature_2m_min"][0])
 
+    step = slots[1] - slots[0] if len(slots) > 1 else 4
+
     days = []
     for idx in range(min(days_count, len(daily["time"]))):
         date = daily["time"][idx]
-        cells = [c for c in (_hour_cell(h, date, hh) for hh in slots) if c]
+        cells = [c for c in (_hour_cell(h, date, hh, step) for hh in slots) if c]
         days.append({
             "label": DAY_LABELS[idx] if idx < len(DAY_LABELS) else date,
             "high":  round(daily["temperature_2m_max"][idx]),
