@@ -9,25 +9,36 @@ station circles (cloud-cover oktas + wind barbs) instead of icons.
 
 ## Forecast slots
 
-Each day shows eight station circles, every 2 hours from 8am to 10pm.
-Rather than sampling only that exact hour, each slot scans every hour up
-to the next slot and renders whichever hour is most significant — ranked
-by precipitation severity (thunder > heavy rain > snow shower > snow >
-sleet > rain > drizzle > fog > mist), falling back to the cloudiest hour
-if none of them have precipitation. That way a shower that falls between
-two slots still shows up in the icon instead of disappearing between
-samples.
+Each day shows a fixed number of station circles, depending on the
+**Forecast Range** setting:
 
-Eight slots wrap to two full rows in the `full` layout's fixed 4-column
-grid, so `--days` defaults to 1 — a second day at this density overflows
-the 480px frame. Pass `--days 2` if you've widened the grid to fit it.
+- **1 day** (default) — 8 slots, every 2 hours from 8am to 10pm, wrapping
+  to two full rows in the `full` layout's 4-column grid.
+- **2 days** — 4 slots/day, every 4 hours from 8am to 8pm, one row per day.
+
+Rather than sampling only the exact slot hour, each slot scans every hour
+up to the next slot and renders whichever hour is most significant —
+ranked by precipitation severity (thunder > heavy rain > snow shower >
+snow > sleet > rain > drizzle > fog > mist), falling back to the cloudiest
+hour if none of them have precipitation. That way a shower that falls
+between two slots still shows up in the icon instead of disappearing
+between samples.
+
+The slot *count* is fixed per range (8 for 1 day, 4 for 2 days) so the
+grid always wraps cleanly, but *which* hours fill those slots can be
+overridden with the **Forecast Hours** custom field (comma-separated 24h
+hours, e.g. `6,9,12,15,18,21,0,3`). The count must match the chosen range
+or the override is ignored in favour of the default hours for that range.
+On the CLI this is `--days {1,2}` and `--hours`.
 
 ## Deploying the CGI (dynamic location)
 
 `weather.cgi` builds the polling JSON per request, with the location taken
 from the query string (`?q=Manchester`, or `?lat=…&lon=…&name=…` to override).
-The TRMNL plugin's **Location** custom field is interpolated into the polling
-URL (`weather.cgi?q={{ location | url_encode }}`).
+The TRMNL plugin's **Location**, **Forecast Range**, and **Forecast Hours**
+custom fields are interpolated into the polling URL (`weather.cgi?q={{
+location | url_encode }}&days={{ days_mode | url_encode }}&hours={{ hours |
+url_encode }}`).
 
 1. Put the checkout on the server and enable CGI for its directory in Apache:
 

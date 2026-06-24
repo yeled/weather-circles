@@ -173,7 +173,37 @@ def _day_svg(h, date, daily, idx):
     return wc.build_svg(entry, INK, mono=True, show_temp=False)
 
 
-def build_payload(data, name, days_count=1, slots=(8, 10, 12, 14, 16, 18, 20, 22)):
+# Slot count is fixed per days_count (8 slots/day for a 1-day view, 4/day
+# for 2 days) so the fixed 4-column grid always wraps cleanly; only which
+# hours fill those slots is configurable (see resolve_slots).
+SLOT_COUNTS = {1: 8, 2: 4}
+DEFAULT_SLOTS = {
+    1: (8, 10, 12, 14, 16, 18, 20, 22),
+    2: (8, 12, 16, 20),
+}
+
+
+def resolve_slots(days_count, hours_str=None):
+    """Slot hours for days_count (1 or 2), optionally overridden by hours_str.
+
+    hours_str is a comma-separated list of 24h hours (e.g. "8,12,16,20").
+    The slot *count* stays fixed per days_count — if hours_str doesn't have
+    exactly that many distinct hours, it's ignored and the default is used.
+    """
+    want = SLOT_COUNTS.get(days_count, SLOT_COUNTS[1])
+    if hours_str:
+        try:
+            parsed = tuple(sorted({int(h) % 24 for h in hours_str.split(",") if h.strip()}))
+        except ValueError:
+            parsed = ()
+        if len(parsed) == want:
+            return parsed
+    return DEFAULT_SLOTS.get(days_count, DEFAULT_SLOTS[1])
+
+
+def build_payload(data, name, days_count=1, slots=None):
+    if slots is None:
+        slots = DEFAULT_SLOTS.get(days_count, DEFAULT_SLOTS[1])
     cur, h, daily = data["current"], data["hourly"], data["daily"]
 
     current = cell(cur)
@@ -352,10 +382,13 @@ def main():
     ap.add_argument("--lon", type=float, help="longitude (overrides --q)")
     ap.add_argument("--name", help="location label (default: looked up / London)")
     ap.add_argument("--tz", help="IANA timezone (default: auto / Europe/London)")
-    ap.add_argument("--days", type=int, default=1,
-                    help="forecast days to show (default 1; the 7-slot day "
-                         "already wraps to 2 rows, so 2 days overflows the "
-                         "fixed 4-column grid)")
+    ap.add_argument("--days", type=int, choices=(1, 2), default=1,
+                    help="forecast range: 1 day at 8 slots/day, or 2 days at "
+                         "4 slots/day (default 1)")
+    ap.add_argument("--hours",
+                    help="comma-separated 24h hours to sample, e.g. 8,12,16,20. "
+                         "Count must match --days (8 hours for --days 1, 4 for "
+                         "--days 2) or this is ignored in favour of the default")
     ap.add_argument("--webhook", default=os.environ.get("TRMNL_WEBHOOK_URL"),
                     help="TRMNL private-plugin webhook URL (or TRMNL_WEBHOOK_URL env)")
     ap.add_argument("--json", action="store_true", help="print payload JSON to stdout")
@@ -377,7 +410,8 @@ def main():
     except Exception as e:                       # noqa: BLE001
         sys.exit(f"weather fetch failed: {e}")
 
-    payload = build_payload(data, name, args.days)
+    slots = resolve_slots(args.days, args.hours)
+    payload = build_payload(data, name, args.days, slots)
 
     if args.preview:
         with open(args.preview, "w") as f:

@@ -6,7 +6,7 @@ static_data: ''
 polling_verb: get
 framework_version: 3.1.1
 serverless_language: ''
-polling_url: https://mb.spodder.com/weather-circles/weather.cgi?q={{ location | url_encode }}
+polling_url: https://mb.spodder.com/weather-circles/weather.cgi?q={{ location | url_encode }}&days={{ days_mode | url_encode }}&hours={{ hours | url_encode }}
 polling_headers: ''
 polling_body: ''
 id: 341571
@@ -18,6 +18,21 @@ custom_fields:
   name: Location
   description: City to show weather for, e.g. Manchester. Leave as London if unsure.
   default: London
+- keyname: days_mode
+  field_type: select
+  name: Forecast Range
+  description: 2 days at 4 slots/day, or 1 day at 8 slots/day.
+  options:
+  - "2"
+  - "1"
+  default: "2"
+- keyname: hours
+  field_type: string
+  name: Forecast Hours (optional)
+  description: Comma-separated 24h hours to sample, e.g. 8,12,16,20. Count
+    must match Forecast Range (4 hours for 2 days, 8 for 1 day) or this is
+    ignored and the default hours for that range are used.
+  default: ''
 - keyname: doesnt_matter
   name: About This Plugin
   category: environment,news
