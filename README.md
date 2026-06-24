@@ -31,14 +31,30 @@ hours, e.g. `6,9,12,15,18,21,0,3`). The count must match the chosen range
 or the override is ignored in favour of the default hours for that range.
 On the CLI this is `--days {1,2}` and `--hours`.
 
+### Rolling slots
+
+The **Rolling Slots** custom field (`--rolling` on the CLI) replaces fixed
+clock times with a window that starts at the current hour and steps
+forward by 2h on every refresh ("now..+2h", "+2h..+4h", ...), so the
+forecast always shows what's coming up next rather than the same eight
+clock times regardless of when you look. It overrides Forecast Hours.
+
+- **1 day**: one continuous rolling window (8 slots, 16h forward). If it
+  spans midnight, the trailing slots are still shown together with today's
+  rather than splitting into a separate "Tomorrow" block.
+- **2 days**: only *today* rolls (stopping at midnight); *tomorrow* isn't a
+  rolling continuation — that would land it on whatever odd hours the
+  rollover happens to hit — so it always shows a fixed 6am/10am/2pm/6pm
+  spread instead.
+
 ## Deploying the CGI (dynamic location)
 
 `weather.cgi` builds the polling JSON per request, with the location taken
 from the query string (`?q=Manchester`, or `?lat=…&lon=…&name=…` to override).
-The TRMNL plugin's **Location**, **Forecast Range**, and **Forecast Hours**
-custom fields are interpolated into the polling URL (`weather.cgi?q={{
-location | url_encode }}&days={{ days_mode | url_encode }}&hours={{ hours |
-url_encode }}`).
+The TRMNL plugin's **Location**, **Forecast Range**, **Forecast Hours**, and
+**Rolling Slots** custom fields are interpolated into the polling URL
+(`weather.cgi?q={{ location | url_encode }}&days={{ days_mode | url_encode
+}}&hours={{ hours | url_encode }}&rolling={{ rolling_mode | url_encode }}`).
 
 1. Put the checkout on the server and enable CGI for its directory in Apache:
 

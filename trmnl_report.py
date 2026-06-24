@@ -26,6 +26,7 @@ Examples:
 """
 
 import argparse
+import datetime as dt
 import json
 import os
 import re
@@ -138,12 +139,22 @@ def _severity(code, cloud):
     return (PRECIP_SEVERITY.get(wc.precip_for(code), 0), cloud or 0)
 
 
-def _hour_cell(h, date, hh, step):
-    """Build a forecast cell for the [hh, hh+step) window, or None.
+def _pick_cell(h, idxs, label):
+    """Build a cell from the worst (most severe, then cloudiest) hour among
+    candidate hourly indices, or None if there were no candidates."""
+    if not idxs:
+        return None
+    j = max(idxs, key=lambda i: _severity(h["weather_code"][i], h["cloud_cover"][i]))
+    c = cell({k: h[k][j] for k in HOURLY_FIELDS})
+    c["label"] = label
+    return c
 
-    Scans every hour in the window rather than just hh itself, and uses the
-    worst (most severe precipitation, then cloudiest) hour's snapshot — so
-    rain that falls between two slot hours still shows up in the icon.
+
+def _hour_cell(h, date, hh, step):
+    """Build a forecast cell for the [hh, hh+step) window on `date`, or None.
+
+    Scans every hour in the window rather than just hh itself, so rain that
+    falls between two slot hours still shows up in the icon.
     """
     idxs = []
     for t in range(hh, hh + step):
@@ -151,12 +162,7 @@ def _hour_cell(h, date, hh, step):
             idxs.append(h["time"].index(f"{date}T{t:02d}:00"))
         except ValueError:
             pass
-    if not idxs:
-        return None
-    j = max(idxs, key=lambda i: _severity(h["weather_code"][i], h["cloud_cover"][i]))
-    c = cell({k: h[k][j] for k in HOURLY_FIELDS})
-    c["label"] = _ampm(hh)
-    return c
+    return _pick_cell(h, idxs, _ampm(hh))
 
 
 def _day_svg(h, date, daily, idx):
@@ -176,6 +182,7 @@ def _day_svg(h, date, daily, idx):
 # Slot count is fixed per days_count (8 slots/day for a 1-day view, 4/day
 # for 2 days) so the fixed 4-column grid always wraps cleanly; only which
 # hours fill those slots is configurable (see resolve_slots).
+GRID_COLS = 4   # matches grid-template-columns:repeat(4,1fr) in the templates
 SLOT_COUNTS = {1: 8, 2: 4}
 DEFAULT_SLOTS = {
     1: (8, 10, 12, 14, 16, 18, 20, 22),
@@ -201,28 +208,112 @@ def resolve_slots(days_count, hours_str=None):
     return DEFAULT_SLOTS.get(days_count, DEFAULT_SLOTS[1])
 
 
-def build_payload(data, name, days_count=1, slots=None):
-    if slots is None:
-        slots = DEFAULT_SLOTS.get(days_count, DEFAULT_SLOTS[1])
+ROLL_STEP_HOURS = 2
+# In 2-day rolling mode, "tomorrow" isn't a continuation of the rolling
+# math (that would land it on whatever oddly-timed hours the rollover
+# happens to hit) -- it's a deliberate full day, so it gets its own fixed
+# daytime spread instead, same 4h cadence as the non-rolling default but
+# starting at 6am.
+TOMORROW_FIXED_HOURS = (6, 10, 14, 18)
+
+
+def _rolling_window_cell(h, slot_start, step):
+    idxs = []
+    for k in range(step):
+        t = (slot_start + dt.timedelta(hours=k)).strftime("%Y-%m-%dT%H:00")
+        try:
+            idxs.append(h["time"].index(t))
+        except ValueError:
+            pass
+    return _pick_cell(h, idxs, _ampm(slot_start.hour))
+
+
+def _rolling_days(h, daily, cur, days_count):
+    """Build the `days` list from rolling 2h windows starting at the current
+    hour ("now..+2h", "+2h..+4h", ...) instead of fixed clock times, so every
+    refresh shifts "today"'s slots forward. Slot count is capped per
+    days_count (see SLOT_COUNTS).
+
+    For days_count == 1 this is one continuous rolling window kept as a
+    single group even if a trailing slot or two technically lands past
+    midnight -- splitting it into a second day-block risks a 2-row block
+    sharing space with a sibling, which doesn't fit the most cramped
+    layout (half_horizontal). For days_count == 2, "today" rolls but stops
+    at midnight, and "tomorrow" gets TOMORROW_FIXED_HOURS instead of a
+    rolling continuation -- it's a deliberate full day, not a 2-row risk.
+    """
+    count = SLOT_COUNTS.get(days_count, SLOT_COUNTS[1])
+    anchor = dt.datetime.fromisoformat(cur["time"]).replace(minute=0, second=0, microsecond=0)
+    today = anchor.strftime("%Y-%m-%d")
+
+    today_cells = []
+    for i in range(count):
+        slot_start = anchor + dt.timedelta(hours=i * ROLL_STEP_HOURS)
+        if days_count == 2 and slot_start.strftime("%Y-%m-%d") != today:
+            break
+        c = _rolling_window_cell(h, slot_start, ROLL_STEP_HOURS)
+        if c is not None:
+            today_cells.append(c)
+
+    days = [{
+        "label": DAY_LABELS[0],
+        "high":  round(daily["temperature_2m_max"][0]),
+        "low":   round(daily["temperature_2m_min"][0]),
+        "svg":   _day_svg(h, today, daily, 0),
+        "cells": today_cells,
+    }]
+
+    if days_count == 2:
+        date = (anchor + dt.timedelta(days=1)).strftime("%Y-%m-%d")
+        try:
+            idx = daily["time"].index(date)
+        except ValueError:
+            idx = None
+        tomorrow_cells = [c for c in (_hour_cell(h, date, hh, 4) for hh in TOMORROW_FIXED_HOURS) if c]
+        if idx is not None and tomorrow_cells:
+            days.append({
+                "label": DAY_LABELS[1] if len(DAY_LABELS) > 1 else date,
+                "high":  round(daily["temperature_2m_max"][idx]),
+                "low":   round(daily["temperature_2m_min"][idx]),
+                "svg":   _day_svg(h, date, daily, idx),
+                "cells": tomorrow_cells,
+            })
+
+    return days
+
+
+def build_payload(data, name, days_count=1, slots=None, rolling=False):
     cur, h, daily = data["current"], data["hourly"], data["daily"]
 
     current = cell(cur)
     current["high"] = round(daily["temperature_2m_max"][0])
     current["low"]  = round(daily["temperature_2m_min"][0])
 
-    step = slots[1] - slots[0] if len(slots) > 1 else 4
+    if rolling:
+        days = _rolling_days(h, daily, cur, days_count)
+    else:
+        if slots is None:
+            slots = DEFAULT_SLOTS.get(days_count, DEFAULT_SLOTS[1])
+        step = slots[1] - slots[0] if len(slots) > 1 else 4
 
-    days = []
-    for idx in range(min(days_count, len(daily["time"]))):
-        date = daily["time"][idx]
-        cells = [c for c in (_hour_cell(h, date, hh, step) for hh in slots) if c]
-        days.append({
-            "label": DAY_LABELS[idx] if idx < len(DAY_LABELS) else date,
-            "high":  round(daily["temperature_2m_max"][idx]),
-            "low":   round(daily["temperature_2m_min"][idx]),
-            "svg":   _day_svg(h, date, daily, idx),
-            "cells": cells,
-        })
+        days = []
+        for idx in range(min(days_count, len(daily["time"]))):
+            date = daily["time"][idx]
+            cells = [c for c in (_hour_cell(h, date, hh, step) for hh in slots) if c]
+            days.append({
+                "label": DAY_LABELS[idx] if idx < len(DAY_LABELS) else date,
+                "high":  round(daily["temperature_2m_max"][idx]),
+                "low":   round(daily["temperature_2m_min"][idx]),
+                "svg":   _day_svg(h, date, daily, idx),
+                "cells": cells,
+            })
+
+    # Number of grid rows each day's cells wrap to (the Liquid templates use
+    # a 4-column grid) -- the templates use this to size each day block
+    # proportionally instead of giving every day equal space regardless of
+    # how many rows of cells it actually holds (see GRID_COLS bleed fix).
+    for d in days:
+        d["rows"] = -(-len(d["cells"]) // GRID_COLS)
 
     return {
         "location":     name,
@@ -388,7 +479,13 @@ def main():
     ap.add_argument("--hours",
                     help="comma-separated 24h hours to sample, e.g. 8,12,16,20. "
                          "Count must match --days (8 hours for --days 1, 4 for "
-                         "--days 2) or this is ignored in favour of the default")
+                         "--days 2) or this is ignored in favour of the default. "
+                         "Ignored entirely if --rolling is set")
+    ap.add_argument("--rolling", action="store_true",
+                    help="ignore --hours and use a rolling window starting at "
+                         "the current hour, stepping by 2h, for the fixed "
+                         "slot count (8 for --days 1, 4 for --days 2) -- so "
+                         "each refresh shows now..+2h, +2h..+4h, and so on")
     ap.add_argument("--webhook", default=os.environ.get("TRMNL_WEBHOOK_URL"),
                     help="TRMNL private-plugin webhook URL (or TRMNL_WEBHOOK_URL env)")
     ap.add_argument("--json", action="store_true", help="print payload JSON to stdout")
@@ -410,8 +507,8 @@ def main():
     except Exception as e:                       # noqa: BLE001
         sys.exit(f"weather fetch failed: {e}")
 
-    slots = resolve_slots(args.days, args.hours)
-    payload = build_payload(data, name, args.days, slots)
+    slots = None if args.rolling else resolve_slots(args.days, args.hours)
+    payload = build_payload(data, name, args.days, slots, rolling=args.rolling)
 
     if args.preview:
         with open(args.preview, "w") as f:
