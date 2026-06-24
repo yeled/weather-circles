@@ -173,7 +173,7 @@ def _day_svg(h, date, daily, idx):
     return wc.build_svg(entry, INK, mono=True, show_temp=False)
 
 
-def build_payload(data, name, days_count=1, slots=(8, 10, 12, 14, 16, 18, 20)):
+def build_payload(data, name, days_count=1, slots=(8, 10, 12, 14, 16, 18, 20, 22)):
     cur, h, daily = data["current"], data["hourly"], data["daily"]
 
     current = cell(cur)
