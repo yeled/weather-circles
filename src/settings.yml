@@ -6,7 +6,7 @@ static_data: ''
 polling_verb: get
 framework_version: 3.1.1
 serverless_language: ''
-polling_url: https://mb.spodder.com/weather-circles/weather.cgi?q={{ location | url_encode }}&days={{ days_mode | url_encode }}&hours={{ hours | url_encode }}
+polling_url: https://mb.spodder.com/weather-circles/weather.cgi?q={{ location | url_encode }}&days={{ days_mode | url_encode }}&hours={{ hours | url_encode }}&rolling={{ rolling_mode | url_encode }}
 polling_headers: ''
 polling_body: ''
 id: 341571
@@ -31,8 +31,21 @@ custom_fields:
   name: Forecast Hours (optional)
   description: Comma-separated 24h hours to sample, e.g. 8,12,16,20. Count
     must match Forecast Range (4 hours for 2 days, 8 for 1 day) or this is
-    ignored and the default hours for that range are used.
+    ignored and the default hours for that range are used. Ignored entirely
+    if Rolling Slots is on.
   default: ''
+- keyname: rolling_mode
+  field_type: select
+  name: Rolling Slots
+  description: When on, today's slots start at the current hour and step
+    forward every 2h (now..+2h, +2h..+4h, ...) instead of fixed clock
+    times, so every refresh shifts the forecast forward. Overrides
+    Forecast Hours. With a 2-day Forecast Range, tomorrow isn't rolling --
+    it always shows a fixed 6am/10am/2pm/6pm spread.
+  options:
+  - "0"
+  - "1"
+  default: "0"
 - keyname: doesnt_matter
   name: About This Plugin
   category: environment,news

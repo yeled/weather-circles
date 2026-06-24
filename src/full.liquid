@@ -11,6 +11,7 @@
   .wc-cur svg{ width:140px; height:140px; }
   .wc-days   { flex:1; display:flex; flex-direction:column; min-width:0; }
   .wc-day    { flex:1; display:flex; flex-direction:column; gap:2px; min-height:0; }
+  .wc-day[data-rows="2"] { flex-grow:2; }
   .wc-day + .wc-day { border-top:2px solid #000; }
   .wc-dayhdr { display:flex; align-items:baseline; gap:8px; }
   .wc-row    { flex:1; display:grid; grid-template-columns:repeat(4,1fr); align-items:center; }
@@ -32,7 +33,7 @@
     </div>
     <div class="wc-days">
       {% for d in days %}
-      <div class="wc-day">
+      <div class="wc-day" data-rows="{{ d.rows }}">
         <div class="wc-dayhdr">
           <span class="title title--small grow">{{ d.label }}</span>
           <span class="label label--small">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
