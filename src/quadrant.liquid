@@ -1,15 +1,18 @@
 {% comment %} Weather Circles — quadrant (400x240), 2-day summary.
-  Built on framework classes (flex/layout/gap/grid/stretch/typography) per
-  TRMNL's review feedback; custom CSS is only for what the framework has no
-  utility for: alignment (avoiding limited_inline_styles), the fixed-width
-  sidebar, and inline SVG icon sizing. lg: variants bump icon size for
-  TRMNL X. {% endcomment %}
+  Built on framework classes (flex/layout/gap/grid/typography) per TRMNL's
+  review feedback; custom CSS is only for what the framework has no utility
+  for, or where the behaviour needs to be certain inside a real mashup tile
+  (this repo has been bitten by mashup-vs-standalone sizing differences
+  before — see git history on full.liquid/.layout): alignment (avoiding
+  limited_inline_styles), the fixed-width sidebar, flex-grow (plain flex:1,
+  not the framework's stretch-x), and inline SVG icon sizing. lg: variants
+  bump icon size for TRMNL X. {% endcomment %}
 <style>
   .wc-cur    { flex:0 0 210px; align-items:center; justify-content:center;
                border-right:2px solid #000; }
   .wc-cur svg{ width:114px; height:114px; }
   .wc-curtxt { align-items:flex-start; }
-  .wc-days   { align-items:center; }
+  .wc-days   { flex:1; align-items:center; }
   .wc-dcard  { align-items:center; }
   .wc-dcard svg{ width:66px; height:66px; }
   .trmnl .screen--lg .wc-cur svg { width:144px; height:144px; }
@@ -25,7 +28,7 @@
       <span class="label label--small">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
     </div>
   </div>
-  <div class="wc-days grid grid--cols-2 stretch-x">
+  <div class="wc-days grid grid--cols-2">
     {% for d in days %}
     <div class="wc-dcard flex layout--col gap--xsmall">
       <span class="title title--small lg:title--base">{{ d.label }}</span>

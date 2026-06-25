@@ -1,30 +1,37 @@
 {% comment %} Weather Circles — full (800x480), 2-day view.
-  Built on framework classes (flex/layout/gap/grid/stretch/typography) per
-  TRMNL's review feedback; custom CSS is only for what the framework has no
-  utility for: alignment (avoiding limited_inline_styles), inline SVG icon
-  sizing, the absolute temp overlay, the day-divider border, and sizing a
-  day block by its actual cell-row count (data-rows) instead of giving
-  every day equal space regardless of content. lg: variants bump icon size
-  for TRMNL X. {% endcomment %}
+  Built on framework classes (flex/layout/gap/grid/typography) per TRMNL's
+  review feedback; custom CSS is only for what the framework has no utility
+  for, or where the behaviour needs to be certain inside a real mashup tile
+  (this repo has been bitten by mashup-vs-standalone sizing differences
+  before — see git history on full.liquid/.layout): alignment (avoiding
+  limited_inline_styles), flex-grow/min-height (plain flex:1, not the
+  framework's stretch-x/y, since those resolve differently depending on
+  the direct parent's classes and we'd rather not gamble on that inside a
+  mashup), inline SVG icon sizing, the absolute temp overlay, the
+  day-divider border, and sizing a day block by its actual cell-row count
+  (data-rows). lg: variants bump icon size for TRMNL X. {% endcomment %}
 <style>
-  .wc-main   { align-items:center; }
+  .wc-main   { flex:1; align-items:center; min-height:0; }
   .wc-cur    { flex:0 0 224px; align-items:center; justify-content:center;
                border-right:2px solid #000; }
   .wc-cur svg{ width:156px; height:156px; }
+  .wc-days   { flex:1; min-width:0; }
+  .wc-day    { flex:1; min-height:0; }
   .wc-day[data-rows="2"] { flex-grow:2; }
   .wc-day + .wc-day { border-top:2px solid #000; }
   .wc-dayhdr { align-items:baseline; }
-  .wc-row    { align-items:center; }
+  .wc-row    { flex:1; align-items:center; }
   .wc-cell   { align-items:center; }
   .wc-plot   { position:relative; line-height:0; }
   .wc-plot svg{ width:100px; height:100px; }
   .wc-temp   { position:absolute; left:2px; top:0; line-height:1; }
+  .grow      { flex:1; }
   .trmnl .screen--lg .wc-cur svg { width:196px; height:196px; }
   .trmnl .screen--lg .wc-plot svg { width:126px; height:126px; }
 </style>
 
 <div class="wc flex layout--col h--full">
-  <div class="wc-main flex layout--row stretch-y gap--large">
+  <div class="wc-main flex layout--row gap--large">
     <div class="wc-cur flex layout--col gap--small">
       {{ current.svg }}
       <span class="value value--large lg:value--xlarge">{{ current.temp }}&deg;</span>
@@ -32,14 +39,14 @@
       <span class="label">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
       <span class="label label--small">{{ current.wind }} &middot; {{ current.oktas }}/8 cloud</span>
     </div>
-    <div class="flex layout--col stretch-x gap--small">
+    <div class="wc-days flex layout--col gap--small">
       {% for d in days %}
-      <div class="wc-day flex layout--col gap--xsmall stretch-y" data-rows="{{ d.rows }}">
+      <div class="wc-day flex layout--col gap--xsmall" data-rows="{{ d.rows }}">
         <div class="wc-dayhdr flex layout--row gap--small">
-          <span class="title title--small lg:title--base stretch-x">{{ d.label }}</span>
+          <span class="title title--small lg:title--base grow">{{ d.label }}</span>
           <span class="label label--small">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
         </div>
-        <div class="wc-row grid grid--cols-4 lg:portrait:grid--cols-2 stretch-y">
+        <div class="wc-row grid grid--cols-4 lg:portrait:grid--cols-2">
           {% for c in d.cells %}
           <div class="wc-cell flex layout--col gap--xsmall">
             <div class="wc-plot">

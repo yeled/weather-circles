@@ -1,22 +1,27 @@
 {% comment %} Weather Circles — half_horizontal (800x240), 2-day view.
-  Built on framework classes (flex/layout/gap/grid/stretch/typography) per
-  TRMNL's review feedback; custom CSS is only for what the framework has no
-  utility for: alignment (avoiding limited_inline_styles), the fixed-width
-  sidebar columns, inline SVG icon sizing, the absolute temp overlay, the
-  day-divider border, flex min-height/min-width:0 (a flexbox quirk, not a
-  framework duplicate), and sizing a day block by its actual cell-row count
-  (data-rows). lg:/lg:portrait: reflow the 4-col grid to 3/2 columns on
-  TRMNL X, where this layout is otherwise too cramped. {% endcomment %}
+  Built on framework classes (flex/layout/gap/grid/typography) per TRMNL's
+  review feedback; custom CSS is only for what the framework has no utility
+  for, or where the behaviour needs to be certain inside a real mashup tile
+  (this repo has been bitten by mashup-vs-standalone sizing differences
+  before — see git history on full.liquid/.layout): alignment (avoiding
+  limited_inline_styles), the fixed-width sidebar columns, flex-grow/
+  min-height/min-width (plain flex:1, not the framework's stretch-x/y,
+  since those resolve differently depending on the direct parent's classes
+  and we'd rather not gamble on that inside a mashup), inline SVG icon
+  sizing, the absolute temp overlay, the day-divider border, and sizing a
+  day block by its actual cell-row count (data-rows). lg:/lg:portrait:
+  reflow the 4-col grid to 3/2 columns on TRMNL X, where this layout is
+  otherwise too cramped. {% endcomment %}
 <style>
   .wc-cur    { flex:0 0 196px; align-items:center; justify-content:center;
                border-right:2px solid #000; }
   .wc-cur svg{ width:110px; height:110px; }
-  .wc-days   { min-width:0; }
-  .wc-day    { min-height:0; }
+  .wc-days   { flex:1; min-width:0; }
+  .wc-day    { flex:1; min-height:0; }
   .wc-day[data-rows="2"] { flex-grow:2; }
   .wc-day + .wc-day { border-top:2px solid #000; }
   .wc-dayhdr { flex:0 0 84px; }
-  .wc-row    { align-items:center; }
+  .wc-row    { flex:1; align-items:center; }
   .wc-cell   { align-items:center; }
   .wc-plot   { position:relative; line-height:0; }
   .wc-plot svg{ width:66px; height:66px; }
@@ -32,14 +37,14 @@
     <span class="label label--small">{{ current.summary }}</span>
     <span class="label label--small">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
   </div>
-  <div class="wc-days flex layout--col stretch-x">
+  <div class="wc-days flex layout--col">
     {% for d in days %}
-    <div class="wc-day flex layout--row gap--base stretch-y" data-rows="{{ d.rows }}">
+    <div class="wc-day flex layout--row gap--base" data-rows="{{ d.rows }}">
       <div class="wc-dayhdr flex layout--col">
         <span class="title title--small lg:title--base">{{ d.label }}</span>
         <span class="label label--small">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
       </div>
-      <div class="wc-row grid grid--cols-4 lg:grid--cols-3 lg:portrait:grid--cols-2 stretch-y">
+      <div class="wc-row grid grid--cols-4 lg:grid--cols-3 lg:portrait:grid--cols-2">
         {% for c in d.cells %}
         <div class="wc-cell flex layout--col">
           <div class="wc-plot">
