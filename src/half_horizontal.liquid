@@ -35,7 +35,7 @@
     {{ current.svg }}
     <span class="value lg:value--large">{{ current.temp }}&deg;</span>
     <span class="label label--small">{{ current.summary }}</span>
-    <span class="label label--small">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
+    <span class="value value--xsmall">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
   </div>
   <div class="wc-days flex layout--col">
     {% for d in days %}

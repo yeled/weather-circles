@@ -10,7 +10,7 @@
 <style>
   .wc-cur    { flex:0 0 210px; align-items:center; justify-content:center;
                border-right:2px solid #000; }
-  .wc-cur svg{ width:114px; height:114px; }
+  .wc-cur svg{ width:96px; height:96px; }
   .wc-curtxt { align-items:flex-start; }
   .wc-days   { flex:1; align-items:center; }
   .wc-dcard  { align-items:center; }
@@ -25,7 +25,7 @@
     <div class="wc-curtxt flex layout--col">
       <span class="value lg:value--large">{{ current.temp }}&deg;</span>
       <span class="label label--small">{{ current.summary }}</span>
-      <span class="label label--small">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
+      <span class="value value--xxsmall">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
     </div>
   </div>
   <div class="wc-days grid grid--cols-2">

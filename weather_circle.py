@@ -22,9 +22,13 @@ import urllib.request
 # ── Geometry (SVG user units) ──────────────────────────────────────────
 SIZE      = 260
 CX = CY   = SIZE / 2
-R         = 48          # station-circle radius
-BARB_LEN  = 66          # wind-shaft length beyond the circle
-STROKE    = 6           # circle / wedge outline weight
+R         = 64          # station-circle radius
+BARB_LEN  = 50          # wind-shaft length beyond the circle
+STROKE    = 7           # circle / wedge outline weight
+# R + BARB_LEN (the shaft tip's reach from centre) is kept ~equal to the old
+# 48 + 66 = 114 so the barb still fits the viewBox in any wind direction; the
+# bigger R / shorter shaft just spends more of that fixed box on the circle
+# itself (≈37% → ≈49% of the width) so the oktas fill reads larger on e-ink.
 
 
 # ── Open-Meteo ─────────────────────────────────────────────────────────
@@ -114,8 +118,8 @@ def draw_barb(dir_deg, knots, ink):
     # Half barb = 5 kt, full barb = 10 kt, pennant (triangle) = 50 kt.
     # Calm: extra ring, no shaft.
     if knots < 1:
-        return [f'<circle cx="{CX}" cy="{CY}" r="{R + 6}" fill="none" '
-                f'stroke="{ink}" stroke-width="3"/>']
+        return [f'<circle cx="{CX}" cy="{CY}" r="{R + 8}" fill="none" '
+                f'stroke="{ink}" stroke-width="4"/>']
 
     a = math.radians(dir_deg)                 # direction wind blows FROM
     ux, uy = math.sin(a), -math.cos(a)        # outward unit vector
@@ -123,7 +127,7 @@ def draw_barb(dir_deg, knots, ink):
 
     sx, sy = CX + ux * R,             CY + uy * R
     ex, ey = CX + ux * (R + BARB_LEN), CY + uy * (R + BARB_LEN)
-    parts = [line(sx, sy, ex, ey, ink, 6)]
+    parts = [line(sx, sy, ex, ey, ink, 7)]
 
     def at(f):                                # point a fraction along the shaft
         d = R + BARB_LEN * f
@@ -143,12 +147,12 @@ def draw_barb(dir_deg, knots, ink):
         t -= step * 2.0; kt -= 50
     while kt >= 10:                           # full barb
         bx, by = at(t)
-        parts.append(line(bx, by, bx + px*FB + ux*6, by + py*FB + uy*6, ink, 6))
+        parts.append(line(bx, by, bx + px*FB + ux*6, by + py*FB + uy*6, ink, 7))
         t -= step; kt -= 10
     if kt >= 5:                               # half barb
         if t > 0.85: t -= step                # keep it off the very tip
         bx, by = at(t)
-        parts.append(line(bx, by, bx + px*HB + ux*3, by + py*HB + uy*3, ink, 6))
+        parts.append(line(bx, by, bx + px*HB + ux*3, by + py*HB + uy*3, ink, 7))
     return parts
 
 
@@ -157,13 +161,17 @@ def draw_precip(key, x, y, s, color):
     if key == "drizzle":
         return [f'<path d="M{x:.2f},{y - s*0.5:.2f} '
                 f'A{s*0.35:.2f},{s*0.45:.2f} 0 1 1 {x - s*0.25:.2f},{y + s*0.4:.2f}" '
-                f'fill="none" stroke="{color}" stroke-width="3" stroke-linecap="round"/>']
+                f'fill="none" stroke="{color}" stroke-width="4" stroke-linecap="round"/>']
     if key == "rain":
-        return [f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{s*0.34:.2f}" fill="{color}"/>']
+        # Bold dots stacked vertically — big enough to read across a room.
+        r = s * 0.5
+        return [f'<circle cx="{x:.2f}" cy="{y + dy:.2f}" r="{r:.2f}" fill="{color}"/>'
+                for dy in (-s*0.72, s*0.72)]
     if key == "heavy_rain":
-        d = s * 0.28
-        return [f'<circle cx="{x+dx:.2f}" cy="{y+dy:.2f}" r="{s*0.22:.2f}" fill="{color}"/>'
-                for dx, dy in ((-d, d*0.6), (d, d*0.6), (0, -d*0.7))]
+        # Three fat dots (triangle) — heavier, and chunkier than plain rain.
+        r = s * 0.5
+        return [f'<circle cx="{x+dx:.2f}" cy="{y+dy:.2f}" r="{r:.2f}" fill="{color}"/>'
+                for dx, dy in ((-s*0.42, s*0.5), (s*0.42, s*0.5), (0, -s*0.62))]
     if key in ("snow", "snow_shower", "sleet"):
         parts = []
         def star(sx, sy, ss):
@@ -171,7 +179,7 @@ def draw_precip(key, x, y, s, color):
             for i in range(3):
                 ang = math.radians(i * 60)
                 dx, dy = math.cos(ang) * ss * 0.5, math.sin(ang) * ss * 0.5
-                out.append(line(sx - dx, sy - dy, sx + dx, sy + dy, color, 3))
+                out.append(line(sx - dx, sy - dy, sx + dx, sy + dy, color, 4))
             return out
         if key == "snow":
             parts += star(x, y, s)
@@ -186,7 +194,7 @@ def draw_precip(key, x, y, s, color):
     if key == "shower":
         return [f'<polygon points="{x:.2f},{y - s*0.5:.2f} '
                 f'{x - s*0.45:.2f},{y + s*0.4:.2f} {x + s*0.45:.2f},{y + s*0.4:.2f}" '
-                f'fill="none" stroke="{color}" stroke-width="3" stroke-linejoin="round"/>']
+                f'fill="none" stroke="{color}" stroke-width="4" stroke-linejoin="round"/>']
     if key == "thunder":
         return [f'<polygon points="{x + s*0.18:.2f},{y - s*0.55:.2f} '
                 f'{x - s*0.30:.2f},{y + s*0.10:.2f} {x - s*0.02:.2f},{y + s*0.05:.2f} '
@@ -194,7 +202,7 @@ def draw_precip(key, x, y, s, color):
                 f'{x + s*0.04:.2f},{y - s*0.06:.2f}" fill="{color}"/>']
     if key in ("mist", "fog"):
         ys = (-0.18, 0.18) if key == "mist" else (-0.3, 0.0, 0.3)
-        return [line(x - s*0.5, y + s*t, x + s*0.5, y + s*t, color, 3) for t in ys]
+        return [line(x - s*0.5, y + s*t, x + s*0.5, y + s*t, color, 4) for t in ys]
     return []
 
 
@@ -214,7 +222,7 @@ def build_svg(cur, ink, mono, show_temp):
     key = precip_for(code)
     if key:
         color = ink if mono else PRECIP_TINT.get(key, ink)
-        body += draw_precip(key, CX - R - 16, CY, 14, color)
+        body += draw_precip(key, CX - R - 22, CY, 22, color)
 
     if show_temp:
         body.append(
