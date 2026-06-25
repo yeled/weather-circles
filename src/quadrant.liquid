@@ -1,29 +1,34 @@
 {% comment %} Weather Circles — quadrant (400x240), 2-day summary.
-  Native framework text classes; custom CSS only for structural layout. {% endcomment %}
+  Built on framework classes (flex/layout/gap/grid/stretch/typography) per
+  TRMNL's review feedback; custom CSS is only for what the framework has no
+  utility for: alignment (avoiding limited_inline_styles), the fixed-width
+  sidebar, and inline SVG icon sizing. lg: variants bump icon size for
+  TRMNL X. {% endcomment %}
 <style>
-  .wc        { height:100%; display:flex; }
-  .wc-cur    { flex:0 0 210px; display:flex; align-items:center; place-content:center;
-               gap:10px; border-right:2px solid #000; }
+  .wc-cur    { flex:0 0 210px; align-items:center; justify-content:center;
+               border-right:2px solid #000; }
   .wc-cur svg{ width:114px; height:114px; }
-  .wc-curtxt { display:flex; flex-direction:column; align-items:flex-start; }
-  .wc-days   { flex:1; display:grid; grid-template-columns:repeat(2,1fr); align-items:center; }
-  .wc-dcard  { display:flex; flex-direction:column; align-items:center; gap:1px; }
+  .wc-curtxt { align-items:flex-start; }
+  .wc-days   { align-items:center; }
+  .wc-dcard  { align-items:center; }
   .wc-dcard svg{ width:66px; height:66px; }
+  .trmnl .screen--lg .wc-cur svg { width:144px; height:144px; }
+  .trmnl .screen--lg .wc-dcard svg { width:84px; height:84px; }
 </style>
 
-<div class="wc">
-  <div class="wc-cur">
+<div class="wc flex layout--row h--full">
+  <div class="wc-cur flex layout--row gap--small">
     {{ current.svg }}
-    <div class="wc-curtxt">
-      <span class="value">{{ current.temp }}&deg;</span>
+    <div class="wc-curtxt flex layout--col">
+      <span class="value lg:value--large">{{ current.temp }}&deg;</span>
       <span class="label label--small">{{ current.summary }}</span>
       <span class="label label--small">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
     </div>
   </div>
-  <div class="wc-days">
+  <div class="wc-days grid grid--cols-2 stretch-x">
     {% for d in days %}
-    <div class="wc-dcard">
-      <span class="title title--small">{{ d.label }}</span>
+    <div class="wc-dcard flex layout--col gap--xsmall">
+      <span class="title title--small lg:title--base">{{ d.label }}</span>
       {{ d.svg }}
       <span class="label label--small">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
     </div>

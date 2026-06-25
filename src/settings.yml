@@ -21,31 +21,39 @@ custom_fields:
 - keyname: days_mode
   field_type: select
   name: Forecast Range
-  description: 2 days at 4 slots/day, or 1 day at 8 slots/day.
+  description: How many days to show. Slot count is fixed per range (4
+    slots/day for 2 days, 8 slots/day for 1 day) so the layout always
+    wraps cleanly.
   options:
-  - "2"
-  - "1"
+  - 2-day forecast (4 slots/day): "2"
+  - 1-day forecast (8 slots/day): "1"
   default: "2"
+- keyname: rolling_mode
+  field_type: select
+  name: Rolling Slots
+  description: Disabled shows fixed clock-time slots (customizable below).
+    Enabled starts today's first slot at the current hour and steps
+    forward every 2h (now..+2h, +2h..+4h, ...), so every refresh shifts
+    the forecast forward instead of repeating the same clock times. With
+    a 2-day Forecast Range, tomorrow is never rolling -- it always shows
+    a fixed 6am/10am/2pm/6pm spread, since a deliberate full day shouldn't
+    depend on whatever odd hours the rollover happens to land on.
+  options:
+  - Disable Rolling Slots: "0"
+  - Use Rolling Slots: "1"
+  default: "0"
+  conditional_validation:
+  - when: "1"
+    hidden:
+    - hours
 - keyname: hours
   field_type: string
   name: Forecast Hours (optional)
   description: Comma-separated 24h hours to sample, e.g. 8,12,16,20. Count
     must match Forecast Range (4 hours for 2 days, 8 for 1 day) or this is
-    ignored and the default hours for that range are used. Ignored entirely
-    if Rolling Slots is on.
+    ignored and the default hours for that range are used. Hidden when
+    Rolling Slots is enabled, since it has no effect then.
   default: ''
-- keyname: rolling_mode
-  field_type: select
-  name: Rolling Slots
-  description: When on, today's slots start at the current hour and step
-    forward every 2h (now..+2h, +2h..+4h, ...) instead of fixed clock
-    times, so every refresh shifts the forecast forward. Overrides
-    Forecast Hours. With a 2-day Forecast Range, tomorrow isn't rolling --
-    it always shows a fixed 6am/10am/2pm/6pm spread.
-  options:
-  - "0"
-  - "1"
-  default: "0"
 - keyname: doesnt_matter
   name: About This Plugin
   category: environment,news

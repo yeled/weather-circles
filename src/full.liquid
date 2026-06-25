@@ -1,46 +1,47 @@
 {% comment %} Weather Circles — full (800x480), 2-day view.
-  Text uses the native framework classes (value/title/label) for crisp e-ink
-  rendering; custom CSS only handles structural layout (flex/grid/gap/border/
-  svg sizing) and avoids the limited_inline_styles-flagged properties. {% endcomment %}
+  Built on framework classes (flex/layout/gap/grid/stretch/typography) per
+  TRMNL's review feedback; custom CSS is only for what the framework has no
+  utility for: alignment (avoiding limited_inline_styles), inline SVG icon
+  sizing, the absolute temp overlay, the day-divider border, and sizing a
+  day block by its actual cell-row count (data-rows) instead of giving
+  every day equal space regardless of content. lg: variants bump icon size
+  for TRMNL X. {% endcomment %}
 <style>
-  .wc        { height:100%; display:flex; flex-direction:column; }
-  .wc-main   { display:flex; flex:1; gap:18px; min-height:0; }
-  .wc-cur    { flex:0 0 224px; display:flex; flex-direction:column;
-               align-items:center; place-content:center; gap:4px;
+  .wc-main   { align-items:center; }
+  .wc-cur    { flex:0 0 224px; align-items:center; justify-content:center;
                border-right:2px solid #000; }
-  .wc-cur svg{ width:140px; height:140px; }
-  .wc-days   { flex:1; display:flex; flex-direction:column; min-width:0; }
-  .wc-day    { flex:1; display:flex; flex-direction:column; gap:2px; min-height:0; }
+  .wc-cur svg{ width:156px; height:156px; }
   .wc-day[data-rows="2"] { flex-grow:2; }
   .wc-day + .wc-day { border-top:2px solid #000; }
-  .wc-dayhdr { display:flex; align-items:baseline; gap:8px; }
-  .wc-row    { flex:1; display:grid; grid-template-columns:repeat(4,1fr); align-items:center; }
-  .wc-cell   { display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .wc-dayhdr { align-items:baseline; }
+  .wc-row    { align-items:center; }
+  .wc-cell   { align-items:center; }
   .wc-plot   { position:relative; line-height:0; }
-  .wc-plot svg{ width:86px; height:86px; }
-  .wc-temp   { position:absolute; left:2px; top:0; line-height:1; }  /* station-model: temp upper-left */
-  .grow      { flex:1; }
+  .wc-plot svg{ width:100px; height:100px; }
+  .wc-temp   { position:absolute; left:2px; top:0; line-height:1; }
+  .trmnl .screen--lg .wc-cur svg { width:196px; height:196px; }
+  .trmnl .screen--lg .wc-plot svg { width:126px; height:126px; }
 </style>
 
-<div class="wc layout--col">
-  <div class="wc-main">
-    <div class="wc-cur">
+<div class="wc flex layout--col h--full">
+  <div class="wc-main flex layout--row stretch-y gap--large">
+    <div class="wc-cur flex layout--col gap--small">
       {{ current.svg }}
-      <span class="value value--large">{{ current.temp }}&deg;</span>
-      <span class="title title--small">{{ current.summary }}</span>
+      <span class="value value--large lg:value--xlarge">{{ current.temp }}&deg;</span>
+      <span class="title title--small lg:title--base">{{ current.summary }}</span>
       <span class="label">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
       <span class="label label--small">{{ current.wind }} &middot; {{ current.oktas }}/8 cloud</span>
     </div>
-    <div class="wc-days">
+    <div class="flex layout--col stretch-x gap--small">
       {% for d in days %}
-      <div class="wc-day" data-rows="{{ d.rows }}">
-        <div class="wc-dayhdr">
-          <span class="title title--small grow">{{ d.label }}</span>
+      <div class="wc-day flex layout--col gap--xsmall stretch-y" data-rows="{{ d.rows }}">
+        <div class="wc-dayhdr flex layout--row gap--small">
+          <span class="title title--small lg:title--base stretch-x">{{ d.label }}</span>
           <span class="label label--small">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
         </div>
-        <div class="wc-row">
+        <div class="wc-row grid grid--cols-4 lg:portrait:grid--cols-2 stretch-y">
           {% for c in d.cells %}
-          <div class="wc-cell">
+          <div class="wc-cell flex layout--col gap--xsmall">
             <div class="wc-plot">
               {{ c.svg }}
               <span class="value value--xsmall wc-temp">{{ c.temp }}</span>
