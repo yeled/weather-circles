@@ -183,10 +183,16 @@ def draw_precip(key, x, y, s, color):
     # UK Met Office station-model present-weather symbols (per reference
     # guide): drizzle = comma, rain = one dot, heavy rain = three dots in a
     # triangle. Drawn bold/large so they still read across a room.
-    if key == "drizzle":                          # comma / hook
-        return [f'<path d="M{x:.2f},{y - s*0.5:.2f} '
-                f'A{s*0.35:.2f},{s*0.45:.2f} 0 1 1 {x - s*0.25:.2f},{y + s*0.4:.2f}" '
-                f'fill="none" stroke="{color}" stroke-width="6" stroke-linecap="round"/>']
+    if key == "drizzle":                          # comma: round head, tail seamless with head's right curve
+        hx, hy, rh = x, y - s*0.16, s*0.40
+        return [
+            f'<circle cx="{hx:.2f}" cy="{hy:.2f}" r="{rh:.2f}" fill="{color}"/>',
+            f'<path d="M{x + s*0.360:.2f},{y + s*0.016:.2f} '
+            f'C{x + s*0.52:.2f},{y + s*0.50:.2f} {x + s*0.26:.2f},{y + s*0.92:.2f} '
+            f'{x + s*0.00:.2f},{y + s*0.88:.2f} '
+            f'C{x + s*0.00:.2f},{y + s*0.44:.2f} {x - s*0.096:.2f},{y + s*0.232:.2f} '
+            f'{x - s*0.19:.2f},{y + s*0.13:.2f} Z" fill="{color}"/>',
+        ]
     if key == "rain":                             # single filled dot
         return [f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{s*0.5:.2f}" fill="{color}"/>']
     if key == "heavy_rain":                        # three dots, triangle (apex up)
