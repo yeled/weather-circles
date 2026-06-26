@@ -180,10 +180,11 @@ def draw_barb(dir_deg, knots, ink, halo=None):
 
 # ── Precipitation glyphs (left of the circle) ──────────────────────────
 def draw_precip(key, x, y, s, color):
-    # Intensity reads as a dot count: 1 = drizzle, 2 = rain, 3 = heavy rain,
-    # all the same fat dot so each is legible across a room.
+    # Intensity reads as dots: a hollow dot = drizzle, 2 filled = rain,
+    # 3 filled = heavy rain — all fat enough to read across a room.
     if key == "drizzle":
-        return [f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{s*0.5:.2f}" fill="{color}"/>']
+        return [f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{s*0.5:.2f}" '
+                f'fill="none" stroke="{color}" stroke-width="4"/>']
     if key == "rain":
         # Two fat dots stacked vertically — big enough to read across a room.
         r = s * 0.5
