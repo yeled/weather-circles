@@ -8,7 +8,7 @@
   not the framework's stretch-x), and inline SVG icon sizing. lg: variants
   bump icon size for TRMNL X. {% endcomment %}
 <style>
-  .wc-cur    { flex:0 0 210px; align-items:center; justify-content:center;
+  .wc-cur    { align-items:center; justify-content:center;
                border-right:2px solid #000; }
   .wc-cur svg{ width:96px; height:96px; }
   .wc-curtxt { align-items:flex-start; }
@@ -19,10 +19,10 @@
   .trmnl .screen--lg .wc-dcard svg { width:84px; height:84px; }
 </style>
 
-<div class="wc flex layout--row h--full">
+<div class="wc flex layout--row lg:portrait:layout--col h--full">
   <div class="wc-cur flex layout--row gap--small">
     {{ current.svg }}
-    <div class="wc-curtxt flex layout--col">
+    <div class="wc-curtxt flex layout--col pr--4">
       <span class="value lg:value--large">{{ current.temp }}&deg;</span>
       <span class="label label--small">{{ current.summary }}</span>
       <span class="value value--xxsmall">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
