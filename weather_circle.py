@@ -180,21 +180,21 @@ def draw_barb(dir_deg, knots, ink, halo=None):
 
 # ── Precipitation glyphs (left of the circle) ──────────────────────────
 def draw_precip(key, x, y, s, color):
-    # Intensity reads as dots: a hollow dot = drizzle, 2 filled = rain,
-    # 3 filled = heavy rain — all fat enough to read across a room.
-    if key == "drizzle":
-        return [f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{s*0.5:.2f}" '
-                f'fill="none" stroke="{color}" stroke-width="4"/>']
-    if key == "rain":
-        # Two fat dots stacked vertically — big enough to read across a room.
-        r = s * 0.5
-        return [f'<circle cx="{x:.2f}" cy="{y + dy:.2f}" r="{r:.2f}" fill="{color}"/>'
-                for dy in (-s*0.72, s*0.72)]
-    if key == "heavy_rain":
-        # Three fat dots in a taller column — clearly heavier than plain rain.
-        r = s * 0.55
-        return [f'<circle cx="{x:.2f}" cy="{y + dy:.2f}" r="{r:.2f}" fill="{color}"/>'
-                for dy in (-s*0.95, 0, s*0.95)]
+    # UK Met Office station-model present-weather symbols (per reference
+    # guide): drizzle = comma, rain = one dot, heavy rain = three dots in a
+    # triangle. Drawn bold/large so they still read across a room.
+    if key == "drizzle":                          # comma / hook
+        return [f'<path d="M{x:.2f},{y - s*0.5:.2f} '
+                f'A{s*0.35:.2f},{s*0.45:.2f} 0 1 1 {x - s*0.25:.2f},{y + s*0.4:.2f}" '
+                f'fill="none" stroke="{color}" stroke-width="6" stroke-linecap="round"/>']
+    if key == "rain":                             # single filled dot
+        return [f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{s*0.5:.2f}" fill="{color}"/>']
+    if key == "heavy_rain":                        # three dots, triangle (apex up)
+        r = s * 0.32
+        g = s * 0.42
+        pts = ((x, y - g), (x - g, y + g*0.6), (x + g, y + g*0.6))
+        return [f'<circle cx="{cx:.2f}" cy="{cy:.2f}" r="{r:.2f}" fill="{color}"/>'
+                for cx, cy in pts]
     if key in ("snow", "snow_shower", "sleet"):
         parts = []
         def star(sx, sy, ss):
@@ -249,7 +249,7 @@ def build_svg(cur, ink, mono, show_temp):
     key = precip_for(code)
     if key:
         color = ink if mono else PRECIP_TINT.get(key, ink)
-        body += draw_precip(key, CX - R - 24, CY, 28, color)
+        body += draw_precip(key, CX - R - 26, CY, 28, color)
 
     if show_temp:
         body.append(
