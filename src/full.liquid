@@ -22,9 +22,8 @@
   .wc-dayhdr { align-items:baseline; }
   .wc-row    { flex:1; align-items:center; }
   .wc-cell   { align-items:center; }
-  .wc-plot   { position:relative; line-height:0; }
+  .wc-plot   { line-height:0; }
   .wc-plot svg{ width:100px; height:100px; }
-  .wc-temp   { position:absolute; left:2px; top:0; line-height:1; }
   .grow      { flex:1; }
   .trmnl .screen--lg .wc-cur svg { width:196px; height:196px; }
   .trmnl .screen--lg .wc-plot svg { width:126px; height:126px; }
@@ -49,10 +48,8 @@
         <div class="wc-row grid grid--cols-4 lg:grid--cols-3 lg:portrait:grid--cols-2">
           {% for c in d.cells %}
           <div class="wc-cell flex layout--col gap--xsmall">
-            <div class="wc-plot">
-              {{ c.svg }}
-              <span class="value value--xsmall wc-temp">{{ c.temp }}</span>
-            </div>
+            <span class="value value--xsmall">{{ c.temp }}&deg;</span>
+            <div class="wc-plot">{{ c.svg }}</div>
             <span class="label label--small">{{ c.label }}</span>
           </div>
           {% endfor %}

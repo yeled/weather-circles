@@ -113,13 +113,24 @@ def draw_oktas(oktas, code, ink):
 
 
 # ── Wind barb ──────────────────────────────────────────────────────────
-def draw_barb(dir_deg, knots, ink):
+def draw_barb(dir_deg, knots, ink, halo=None):
     # Bold feathers so they survive being scaled down to e-ink cell size.
     # Half barb = 5 kt, full barb = 10 kt, pennant (triangle) = 50 kt.
     # Calm: extra ring, no shaft.
+    #
+    # When `halo` (a background colour) is given, every stroke is drawn as a
+    # wider halo-coloured casing first, then the ink stroke on top. The barb
+    # is drawn *over* the cloud fill (see build_svg), so on a fully-overcast
+    # (solid black) circle the white casing keeps the black barb from
+    # vanishing into the black disc — readable across a room.
     if knots < 1:
-        return [f'<circle cx="{CX}" cy="{CY}" r="{R + 8}" fill="none" '
-                f'stroke="{ink}" stroke-width="4"/>']
+        ring = (f'<circle cx="{CX}" cy="{CY}" r="{R + 8}" fill="none" '
+                f'stroke="%s" stroke-width="%d"/>')
+        out = []
+        if halo:
+            out.append(ring % (halo, 9))
+        out.append(ring % (ink, 4))
+        return out
 
     a = math.radians(dir_deg)                 # direction wind blows FROM
     ux, uy = math.sin(a), -math.cos(a)        # outward unit vector
@@ -127,7 +138,7 @@ def draw_barb(dir_deg, knots, ink):
 
     sx, sy = CX + ux * R,             CY + uy * R
     ex, ey = CX + ux * (R + BARB_LEN), CY + uy * (R + BARB_LEN)
-    parts = [line(sx, sy, ex, ey, ink, 7)]
+    segs = [(sx, sy, ex, ey, 7)]              # shaft; (x1,y1,x2,y2,width)
 
     def at(f):                                # point a fraction along the shaft
         d = R + BARB_LEN * f
@@ -138,40 +149,51 @@ def draw_barb(dir_deg, knots, ink):
     step = 13 / BARB_LEN
     FB, HB = 24, 13                           # full / half barb length
 
+    penns = []                                # pennant triangles (pt-triples)
     while kt >= 50:                           # pennant (filled triangle)
         bx, by = at(t)
         cx2, cy2 = at(t - step * 1.7)
-        parts.append(f'<polygon points="{bx:.2f},{by:.2f} '
-                     f'{bx + px*FB:.2f},{by + py*FB:.2f} '
-                     f'{cx2:.2f},{cy2:.2f}" fill="{ink}"/>')
+        penns.append((bx, by, bx + px*FB, by + py*FB, cx2, cy2))
         t -= step * 2.0; kt -= 50
     while kt >= 10:                           # full barb
         bx, by = at(t)
-        parts.append(line(bx, by, bx + px*FB + ux*6, by + py*FB + uy*6, ink, 7))
+        segs.append((bx, by, bx + px*FB + ux*6, by + py*FB + uy*6, 7))
         t -= step; kt -= 10
     if kt >= 5:                               # half barb
         if t > 0.85: t -= step                # keep it off the very tip
         bx, by = at(t)
-        parts.append(line(bx, by, bx + px*HB + ux*3, by + py*HB + uy*3, ink, 7))
-    return parts
+        segs.append((bx, by, bx + px*HB + ux*3, by + py*HB + uy*3, 7))
+
+    def penn(pts, fill, stroke=None, w=0):
+        s = f' stroke="{stroke}" stroke-width="{w}" stroke-linejoin="round"' if stroke else ''
+        return (f'<polygon points="{pts[0]:.2f},{pts[1]:.2f} {pts[2]:.2f},{pts[3]:.2f} '
+                f'{pts[4]:.2f},{pts[5]:.2f}" fill="{fill}"{s}/>')
+
+    out = []
+    if halo:                                  # halo casing underneath
+        out += [line(x1, y1, x2, y2, halo, w + 5) for x1, y1, x2, y2, w in segs]
+        out += [penn(p, halo, halo, 5) for p in penns]
+    out += [line(x1, y1, x2, y2, ink, w) for x1, y1, x2, y2, w in segs]
+    out += [penn(p, ink) for p in penns]
+    return out
 
 
 # ── Precipitation glyphs (left of the circle) ──────────────────────────
 def draw_precip(key, x, y, s, color):
+    # Intensity reads as a dot count: 1 = drizzle, 2 = rain, 3 = heavy rain,
+    # all the same fat dot so each is legible across a room.
     if key == "drizzle":
-        return [f'<path d="M{x:.2f},{y - s*0.5:.2f} '
-                f'A{s*0.35:.2f},{s*0.45:.2f} 0 1 1 {x - s*0.25:.2f},{y + s*0.4:.2f}" '
-                f'fill="none" stroke="{color}" stroke-width="4" stroke-linecap="round"/>']
+        return [f'<circle cx="{x:.2f}" cy="{y:.2f}" r="{s*0.5:.2f}" fill="{color}"/>']
     if key == "rain":
-        # Bold dots stacked vertically — big enough to read across a room.
+        # Two fat dots stacked vertically — big enough to read across a room.
         r = s * 0.5
         return [f'<circle cx="{x:.2f}" cy="{y + dy:.2f}" r="{r:.2f}" fill="{color}"/>'
                 for dy in (-s*0.72, s*0.72)]
     if key == "heavy_rain":
-        # Three fat dots (triangle) — heavier, and chunkier than plain rain.
-        r = s * 0.5
-        return [f'<circle cx="{x+dx:.2f}" cy="{y+dy:.2f}" r="{r:.2f}" fill="{color}"/>'
-                for dx, dy in ((-s*0.42, s*0.5), (s*0.42, s*0.5), (0, -s*0.62))]
+        # Three fat dots in a taller column — clearly heavier than plain rain.
+        r = s * 0.55
+        return [f'<circle cx="{x:.2f}" cy="{y + dy:.2f}" r="{r:.2f}" fill="{color}"/>'
+                for dy in (-s*0.95, 0, s*0.95)]
     if key in ("snow", "snow_shower", "sleet"):
         parts = []
         def star(sx, sy, ss):
@@ -215,14 +237,18 @@ def build_svg(cur, ink, mono, show_temp):
     wdir   = cur.get("wind_direction_10m") or 0
     oktas  = round(cloud / 12.5)
 
+    # Draw order: cloud fill, then the wind barb on top (with a white halo in
+    # mono/white-bg mode so it stays visible over a solid-black overcast disc),
+    # then precipitation on top of everything so the dots stay crisp.
+    halo = "#ffffff" if mono else None
     body = []
-    body += draw_barb(wdir, wspd, ink)
     body += draw_oktas(oktas, code, ink)
+    body += draw_barb(wdir, wspd, ink, halo)
 
     key = precip_for(code)
     if key:
         color = ink if mono else PRECIP_TINT.get(key, ink)
-        body += draw_precip(key, CX - R - 22, CY, 22, color)
+        body += draw_precip(key, CX - R - 24, CY, 28, color)
 
     if show_temp:
         body.append(
