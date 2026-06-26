@@ -255,7 +255,15 @@ def build_svg(cur, ink, mono, show_temp):
     key = precip_for(code)
     if key:
         color = ink if mono else PRECIP_TINT.get(key, ink)
-        body += draw_precip(key, CX - R - 26, CY, 28, color)
+        # Present weather stays left of the circle, but the wind barb leaves
+        # the circle along the wind-from direction — so when the barb has a
+        # westerly component (points left) it shares that side. Nudge the
+        # precip up or down into the opposite vertical half so they don't
+        # overlap: barb pointing down-left -> precip up, up-left -> down.
+        ay = CY
+        if wspd >= 1 and math.sin(math.radians(wdir)) < -0.1:
+            ay = CY - R*0.7 if -math.cos(math.radians(wdir)) >= 0 else CY + R*0.7
+        body += draw_precip(key, CX - R - 26, ay, 28, color)
 
     if show_temp:
         body.append(
