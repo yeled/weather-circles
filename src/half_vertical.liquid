@@ -9,54 +9,78 @@
   the direct parent's classes and we'd rather not gamble on that inside a
   mashup), inline SVG icon sizing, the absolute temp overlay, the
   day-divider border, and sizing a day block by its actual cell-row count
-  (data-rows). lg: variants bump icon size for TRMNL X. {% endcomment %}
+  (data-rows). lg: variants bump icon size for TRMNL X. .wc-body carries its
+  own inner padding: the framework's own --gap already separates the tile
+  from the screen edge, but our own content had nothing reserved between it
+  and *that* boundary, so text ran flush against it. title_bar stays outside
+  .wc-body so its background remains full-bleed. .wc-curtxt gets a negative
+  margin to pull it in from the circle's icon box: the box reserves room for
+  the wind barb in every direction, so the drawn circle only fills ~49% of
+  its own width -- most of the visual gap to the temperature text is empty
+  SVG margin, not the flex gap. The same empty barb margin is why the grid
+  cells overlay their temp absolutely in the plot box's top-left corner
+  (diagonally NW of the drawn circle, not stacked N above the whole box) and
+  pull the time label up under the circle with a negative margin: both sit
+  in space the SVG reserves but rarely uses. When the barb itself heads into
+  the NW corner (wind from ~WNW..NNW) the payload sets c.tpos to wc-tp-ne
+  and the temp flips to the NE corner instead (see temp_side in
+  trmnl_report.py). A barb pointing S can still reach the time label --
+  accepted, the barb halo keeps it legible. {% endcomment %}
 <style>
+  .wc-body   { flex:1; min-height:0; padding:6px 10px; }
   .wc-cur    { align-items:center; justify-content:center; padding:4px 0;
                border-bottom:2px solid #000; }
   .wc-cur svg{ width:100px; height:100px; }
-  .wc-curtxt { align-items:flex-start; }
+  .wc-curtxt { align-items:flex-start; margin-left:-8px; }
   .wc-days   { flex:1; min-height:0; }
   .wc-day    { flex:1; min-height:0; }
   .wc-day[data-rows="2"] { flex-grow:2; }
   .wc-day + .wc-day { border-top:2px solid #000; }
   .wc-dayhdr { align-items:baseline; }
   .wc-row    { flex:1; align-items:center; }
-  .wc-cell   { align-items:center; }
-  .wc-plot   { line-height:0; }
+  .wc-cell   { align-items:center; gap:0; }
+  .wc-plot   { line-height:0; position:relative; }
   .wc-plot svg{ width:58px; height:58px; }
+  .wc-plot .value { position:absolute; top:1px; left:0; line-height:1; }
+  .wc-plot .value.wc-tp-ne { left:auto; right:0; }
+  .wc-cell .label { margin-top:-9px; }
   .grow      { flex:1; }
   .trmnl .screen--lg .wc-cur svg { width:130px; height:130px; }
   .trmnl .screen--lg .wc-plot svg { width:74px; height:74px; }
 </style>
 
 <div class="wc flex layout--col h--full">
-  <div class="wc-cur flex layout--row gap--small">
-    {{ current.svg }}
-    <div class="wc-curtxt flex layout--col">
-      <span class="value value--large lg:value--xlarge">{{ current.temp }}&deg;</span>
-      <span class="title title--small lg:title--base">{{ current.summary }}</span>
-      <span class="value value--xsmall">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
-      <span class="label label--small">{{ current.wind }}</span>
-    </div>
-  </div>
-  <div class="wc-days flex layout--col">
-    {% for d in days %}
-    <div class="wc-day flex layout--col" data-rows="{{ d.rows }}">
-      <div class="wc-dayhdr flex layout--row gap--small">
-        <span class="title title--small lg:title--base grow">{{ d.label }}</span>
-        <span class="label label--small">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
+  <div class="wc-body flex layout--col">
+    <div class="wc-cur flex layout--row gap--small">
+      {{ current.svg }}
+      <div class="wc-curtxt flex layout--col">
+        <span class="value value--large lg:value--xlarge">{{ current.temp }}&deg;</span>
+        <span class="title title--small lg:title--base">{{ current.summary }}</span>
+        <span class="value value--xsmall">H {{ current.high }}&deg; &middot; L {{ current.low }}&deg;</span>
+        <span class="label label--small">{{ current.wind }}</span>
       </div>
-      <div class="wc-row grid grid--cols-4 lg:portrait:grid--cols-2">
-        {% for c in d.cells %}
-        <div class="wc-cell flex layout--col">
-          <span class="value value--xxsmall">{{ c.temp }}&deg;</span>
-          <div class="wc-plot">{{ c.svg }}</div>
-          <span class="label label--small">{{ c.label }}</span>
+    </div>
+    <div class="wc-days flex layout--col">
+      {% for d in days %}
+      <div class="wc-day flex layout--col" data-rows="{{ d.rows }}">
+        <div class="wc-dayhdr flex layout--row gap--small">
+          <span class="title title--small lg:title--base grow">{{ d.label }}</span>
+          <span class="label label--small">H {{ d.high }}&deg; &middot; L {{ d.low }}&deg;</span>
         </div>
-        {% endfor %}
+        <div class="wc-row grid grid--cols-4 lg:portrait:grid--cols-2">
+          {% for c in d.cells %}
+          <div class="wc-cell flex layout--col">
+            <div class="wc-plot">
+              <span class="value value--xxsmall {{ c.tpos }}">{{ c.temp }}&deg;</span>
+              {{ c.svg }}
+            </div>
+            <span class="label label--small">{{ c.label }}</span>
+          </div>
+          {% endfor %}
+        </div>
       </div>
+      {% endfor %}
     </div>
-    {% endfor %}
   </div>
   <div class="title_bar">
     <span class="title">Weather Circles</span>

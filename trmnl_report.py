@@ -104,11 +104,24 @@ def wind_text(knots, deg):
     return f"{round(knots)} kt {COMPASS[round(deg / 45) % 8]}"
 
 
+def temp_side(entry):
+    """CSS class hook: which corner of the icon box the cell temp overlay
+    should sit in. The templates park it NW of the circle by default, but the
+    barb shaft leaves the circle along the wind-from direction and reaches
+    R+BARB_LEN=114 of the 130-unit half-box — for winds from ~WNW..NNW that
+    puts shaft/feathers in the NW corner, under the text. Flip it to the NE
+    corner then (safe: those same winds keep shaft and feathers left of it)."""
+    knots = entry.get("wind_speed_10m") or 0
+    wdir = entry.get("wind_direction_10m") or 0
+    return "wc-tp-ne" if knots >= 1 and 290 <= wdir % 360 <= 355 else ""
+
+
 def cell(entry):
     """entry: dict with the five Open-Meteo fields -> report cell."""
     return {
         "svg":     wc.build_svg(entry, INK, mono=True, show_temp=False),
         "temp":    round(entry["temperature_2m"]),
+        "tpos":    temp_side(entry),
         "summary": WMO.get(entry["weather_code"], "—"),
         "wind":    wind_text(entry.get("wind_speed_10m"),
                              entry.get("wind_direction_10m") or 0),
