@@ -1,6 +1,9 @@
 # trmnlp build output
 _build/
 
+# bytecode (the CGI imports trmnl_report, so this appears in the deploy dir)
+__pycache__/
+
 # rasterised / generated previews
 *.png
 !docs/*.png

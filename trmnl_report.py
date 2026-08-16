@@ -27,6 +27,7 @@ Examples:
 
 import argparse
 import datetime as dt
+import html
 import json
 import os
 import re
@@ -55,13 +56,18 @@ WMO = {
 }
 COMPASS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 
+# Per-call timeout for Open-Meteo. Geocode and forecast are two *sequential*
+# blocking calls, so this is the unit of "how long one request can hold a
+# worker" -- weather.cgi lowers it, since there it's a public DoS lever.
+UPSTREAM_TIMEOUT = 15
+
 
 def geocode(query):
     """Resolve a place name to coordinates via Open-Meteo's geocoding API."""
     params = urllib.parse.urlencode(
         {"name": query, "count": 1, "language": "en", "format": "json"})
     url = f"https://geocoding-api.open-meteo.com/v1/search?{params}"
-    with urllib.request.urlopen(url, timeout=15) as resp:
+    with urllib.request.urlopen(url, timeout=UPSTREAM_TIMEOUT) as resp:
         results = (json.load(resp).get("results") or [])
     if not results:
         raise ValueError(f"no location found for {query!r}")
@@ -94,7 +100,7 @@ def fetch(lat, lon, tz):
         "wind_speed_unit": "kn", "forecast_days": 2, "timezone": tz,
     })
     url = f"https://api.open-meteo.com/v1/forecast?{params}"
-    with urllib.request.urlopen(url, timeout=15) as resp:
+    with urllib.request.urlopen(url, timeout=UPSTREAM_TIMEOUT) as resp:
         return json.load(resp)
 
 
@@ -361,8 +367,14 @@ def _lookup(expr, ctx):
 
 def _subst_vars(text, ctx):
     def rep(m):
-        v = _lookup(m.group(1), ctx)
-        return "" if v is None else str(v)
+        expr = m.group(1)
+        v = _lookup(expr, ctx)
+        if v is None:
+            return ""
+        # Only `escape` is supported, but it has to be, or the preview would
+        # render {{ location | escape }} raw while TRMNL escapes it.
+        filters = [f.strip() for f in expr.split("|")[1:]]
+        return html.escape(str(v)) if "escape" in filters else str(v)
     return re.sub(r"{{\s*(.*?)\s*}}", rep, text)
 
 

@@ -66,6 +66,16 @@ The TRMNL plugin's **Location**, **Forecast Range**, **Forecast Hours**, and
        SetEnv WEATHER_CIRCLES_DIR /path/to/checkout
        Require all granted
    </Directory>
+
+   # The checkout is inside the docroot, so everything in it is served by
+   # default -- including .git/, which hands out the whole repo (and any
+   # credentials in a remote URL). Serve the endpoint, nothing else.
+   <DirectoryMatch "/var/www/html/weather-circles/\.git">
+       Require all denied
+   </DirectoryMatch>
+   <FilesMatch "\.(py|pyc|yml|md|tmp)$">
+       Require all denied
+   </FilesMatch>
    ```
 
    ```bash
@@ -73,8 +83,14 @@ The TRMNL plugin's **Location**, **Forecast Range**, **Forecast Hours**, and
    chmod +x weather.cgi
    ```
 
+   The checkout must not be writable by the Apache user: `weather.cgi` puts
+   its own directory on `sys.path`, so a writable docroot turns any file
+   upload into code execution.
+
 2. `REPO_DIR` defaults to the script's own directory; set `WEATHER_CIRCLES_DIR`
-   only if `weather.cgi` lives apart from `trmnl_report.py`.
+   only if `weather.cgi` lives apart from `trmnl_report.py`. Keeping the
+   checkout outside the docroot entirely and pointing at it with
+   `WEATHER_CIRCLES_DIR` avoids the whole question above.
 
 3. Test:
 
@@ -82,5 +98,21 @@ The TRMNL plugin's **Location**, **Forecast Range**, **Forecast Hours**, and
    curl 'https://your-host/weather-circles/weather.cgi?q=Paris'   # → "Paris, FR"
    curl 'https://your-host/weather-circles/weather.cgi'           # → London
    ```
+
+### Rate limiting
+
+The endpoint is public and unauthenticated, and each miss costs two upstream
+calls to Open-Meteo. It defends itself as far as a CGI can: responses are
+cached for 5 minutes in a temp dir (override with `WEATHER_CIRCLES_CACHE`),
+at most 4 requests may be fetching upstream at once — the rest get a `503`
+with `Retry-After`, or a stale cache entry if one exists — and upstream
+timeouts are 5s so no request can hold a worker for long. `X-Cache` on the
+response says `hit`, `miss` or `stale`.
+
+That caps the damage but doesn't stop a determined flood, since varying `?q=`
+misses the cache every time. On a host that's reachable from anywhere, put a
+real rate limit in front — `mod_ratelimit`, `mod_qos`, or a fail2ban jail on
+the access log. Open-Meteo's free tier is rate-limited per IP, so an
+unthrottled endpoint gets *your server* blocked, not the attacker.
 
 Only stdlib is required (Python 3, headless Chrome only for local PNG previews).
